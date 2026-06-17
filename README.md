@@ -302,4 +302,4 @@ MIT License — see [LICENSE](LICENSE)
 
 ---
 
-*Built with ❤️ — ASFT: Adaptive Sparse Fine-Tuning Framework*
+*Built with ❤️ — soumyashiv : Adaptive Sparse Fine-Tuning Framework*
