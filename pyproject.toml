@@ -1,0 +1,104 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "asft"
+version = "0.1.0"
+description = "Adaptive Sparse Fine-Tuning — Next-generation hardware-adaptive AI learning framework"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = ["machine-learning", "fine-tuning", "sparse-training", "lora", "qlora", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.1.0",
+    "transformers>=4.40.0",
+    "peft>=0.10.0",
+    "accelerate>=0.28.0",
+    "bitsandbytes>=0.43.0",
+    "safetensors>=0.4.0",
+    "datasets>=2.18.0",
+    "sentence-transformers>=2.7.0",
+    "chromadb>=0.5.0",
+    "sqlalchemy>=2.0.0",
+    "scikit-learn>=1.4.0",
+    "datasketch>=1.6.0",
+    "numpy>=1.26.0",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+    "plotly>=5.20.0",
+    "matplotlib>=3.8.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "psutil>=5.9.0",
+    "httpx>=0.27.0",
+    "tqdm>=4.66.0",
+    "aiofiles>=23.2.0",
+    "python-multipart>=0.0.9",
+    "jinja2>=3.1.0",
+    "pandas>=2.2.0",
+    "scipy>=1.12.0",
+    "filelock>=3.13.0",
+    "huggingface-hub>=0.22.0",
+]
+
+[project.optional-dependencies]
+faiss = ["faiss-cpu>=1.8.0"]
+faiss-gpu = ["faiss-gpu>=1.8.0"]
+qdrant = ["qdrant-client>=1.9.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-benchmark>=4.0.0",
+    "black>=24.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "ipykernel>=6.29.0",
+]
+all = [
+    "faiss-cpu>=1.8.0",
+    "qdrant-client>=1.9.0",
+]
+
+[project.scripts]
+asft = "asft.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["asft"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests requiring GPU",
+]

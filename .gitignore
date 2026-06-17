@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
+venv/
+.venv/
+pip-wheel-metadata/
+share/python-wheels/
+*.whl
+
+# ML / Model artifacts
+*.safetensors
+*.bin
+*.gguf
+*.pt
+*.pth
+checkpoints/
+runs/
+outputs/
+wandb/
+mlruns/
+.cache/
+models/
+*.ckpt
+
+# ASFT data
+asft_data/
+skill_packs/
+memory_store/
+benchmark_results/
+*.db
+*.sqlite
+*.sqlite3
+
+# ChromaDB
+chroma_db/
+chromadb/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Env
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Dist
+dist/
