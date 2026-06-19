@@ -46,14 +46,21 @@ class DatasetClusterer:
             raise ValueError(f"Unknown clustering method: {self._method}")
 
     def _kmeans(self, embeddings: np.ndarray, n: int) -> Tuple[np.ndarray, Dict]:
-        from sklearn.cluster import KMeans
         k = self._n_clusters or max(2, int(n * self._reduction_ratio))
         k = min(k, n)
-        logger.info("KMeans clustering: n=%d k=%d", n, k)
-        km = KMeans(n_clusters=k, random_state=42, n_init=10)
+        
+        if n > 10000:
+            from sklearn.cluster import MiniBatchKMeans
+            logger.info("MiniBatchKMeans clustering: n=%d k=%d", n, k)
+            km = MiniBatchKMeans(n_clusters=k, random_state=42, n_init="auto", batch_size=1024)
+        else:
+            from sklearn.cluster import KMeans
+            logger.info("KMeans clustering: n=%d k=%d", n, k)
+            km = KMeans(n_clusters=k, random_state=42, n_init=10)
+            
         labels = km.fit_predict(embeddings)
         stats = {
-            "method": "kmeans",
+            "method": "minibatch_kmeans" if n > 10000 else "kmeans",
             "n_clusters": k,
             "inertia": float(km.inertia_),
             "n_samples": n,

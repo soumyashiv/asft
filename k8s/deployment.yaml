@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asft-api
+  namespace: asft-system
+  labels:
+    app: asft
+    component: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: asft
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: asft
+        component: api
+    spec:
+      containers:
+      - name: asft-api
+        image: asft/api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: ASFT_HOST
+          value: "0.0.0.0"
+        - name: ASFT_PORT
+          value: "8000"
+        - name: ASFT_WORKERS
+          value: "4"
+        # Secret reference for ASFT_API_KEYS
+        - name: ASFT_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: asft-secrets
+              key: api-keys
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - name: asft-data
+          mountPath: /app/asft_data
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: asft-data
+        persistentVolumeClaim:
+          claimName: asft-data-pvc
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: asft-api
+  namespace: asft-system
+  labels:
+    app: asft
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: asft
+    component: api

@@ -1,260 +1,254 @@
 """
-Verification Layer — Cross-checks outputs against memory, tools, math, and code execution.
-Knowledge Gap Detector — Identifies when required knowledge is missing before answering.
-Expert Router — Routes tasks to specialized skill packs with multi-expert consensus.
+ASFT Verification Layer — Safe, evidence-based output checking.
+
+SECURITY REDESIGN:
+    The original implementation contained a critical Remote Code Execution (RCE)
+    vulnerability: it wrote LLM-generated code to a temp file and ran it with
+    subprocess.run(), protected only by a naive string blocklist.
+
+    This blocklist is trivially bypassed. Example bypass:
+        getattr(__builtins__, 'ex'+'ec')('import os; os.system("rm -rf /")')
+
+    ALL execution-based verification has been permanently removed.
+
+WHAT THIS MODULE NOW DOES (safe alternatives):
+    1. Math verification  → SymPy CAS (symbolic math, no code execution)
+    2. Code verification  → AST-only syntax validation (parsing only, no execution)
+    3. Memory cross-check → vector similarity search against stored facts
+    4. General           → confidence-based heuristic scoring
+
+WHAT IS NOT HERE (and why):
+    - subprocess.run, os.system, exec, eval on user input: PERMANENTLY REMOVED
+    - KnowledgeGapDetector: detected patterns in the prompt, not the response —
+      fundamentally wrong signal, removed.
+    - ExpertRouter.consensus (max-of-k): this was not consensus, just argmax;
+      replaced by MultiPassReasoner's legitimate self-consistency strategy.
+
+PRODUCTION CODE EXECUTION (if needed):
+    If your use case genuinely requires executing LLM-generated code, use an
+    external sandboxed service (e.g., E2B, Firecracker, Docker API).
+    Never execute LLM code in-process on the API server.
 """
 from __future__ import annotations
 
 import logging
 import re
-import subprocess
-import tempfile
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Optional
+
+from asft.security.sandbox import validate_code_syntax, verify_math_with_sympy
 
 logger = logging.getLogger(__name__)
 
 
-# ===========================================================================
-# Verification Layer
-# ===========================================================================
-
 @dataclass
 class VerificationResult:
+    """Result of output verification."""
     verified: bool
-    method: str
-    confidence: float
+    method: str             # "math_cas" | "code_ast" | "memory" | "heuristic" | "none"
+    confidence: float       # 0–1
     details: str = ""
     corrections: Optional[str] = None
+    safe_to_execute: bool = False  # Always False — we never execute LLM code
 
 
 class VerificationLayer:
     """
-    Verifies model outputs using multiple cross-checking methods:
-      - Memory: check against stored facts
-      - Mathematical: validate numeric results
-      - Code execution: run generated code and check output
+    Verifies model outputs using safe, non-executing methods only.
+
+    Routing:
+        - Math expressions  → SymPy CAS (symbolic evaluation)
+        - Code blocks       → AST syntax validation only
+        - Memory available  → semantic similarity cross-check
+        - Otherwise         → heuristic confidence scoring
     """
 
-    def __init__(self, memory_manager=None, enable_code_execution: bool = True):
+    def __init__(self, memory_manager=None):
         self._memory = memory_manager
-        self._enable_code = enable_code_execution
 
     def verify(self, output: str, task: str, task_type: str = "general") -> VerificationResult:
-        """Route to the appropriate verification method."""
+        """Route to the appropriate safe verification method."""
+        if not output or not output.strip():
+            return VerificationResult(
+                verified=False, method="none", confidence=0.1,
+                details="Empty output"
+            )
+
         if task_type in ("mathematics", "math") or self._looks_mathematical(output):
             return self._verify_math(output, task)
+
         if task_type in ("coding", "code") or "```" in output:
-            return self._verify_code(output)
-        if self._memory:
+            return self._verify_code_syntax(output)
+
+        if self._memory is not None:
             return self._verify_via_memory(output, task)
-        return VerificationResult(verified=True, method="none", confidence=0.5,
-                                  details="No verification method available")
+
+        return self._heuristic_verify(output)
+
+    # ------------------------------------------------------------------
+    # Math verification via SymPy CAS — no eval(), no exec()
+    # ------------------------------------------------------------------
 
     def _verify_math(self, output: str, task: str) -> VerificationResult:
-        """Extract and validate numeric results."""
-        numbers = re.findall(r'-?\d+\.?\d*', output)
-        task_numbers = re.findall(r'-?\d+\.?\d*', task)
+        """
+        Extract numeric results from the output and verify using SymPy CAS.
 
-        if not numbers:
-            return VerificationResult(verified=True, method="math", confidence=0.4,
-                                      details="No numeric result found to verify")
+        Why SymPy instead of eval():
+            SymPy.sympify() parses mathematical expressions symbolically.
+            It never executes arbitrary Python code. eval() on a user-derived
+            string is a security vulnerability even with empty __builtins__.
 
-        # Try to re-compute simple arithmetic from task
+        Limitations:
+            - Only works for closed-form arithmetic and algebra
+            - Cannot verify proof-based or geometric reasoning
+        """
+        # Extract simple arithmetic from the task (numbers and operators only)
+        task_expr = re.sub(r"[^0-9+\-*/().^\s]", " ", task).strip()
+        numbers_in_output = re.findall(r"-?\d+\.?\d*", output)
+
+        if not numbers_in_output:
+            return VerificationResult(
+                verified=True, method="math_cas", confidence=0.4,
+                details="No numeric result found to verify"
+            )
+
+        if not task_expr or len(task_expr) < 3:
+            return VerificationResult(
+                verified=True, method="math_cas", confidence=0.5,
+                details="Task expression too complex for symbolic extraction"
+            )
+
+        result = verify_math_with_sympy(task_expr.replace("^", "**"))
+
+        if not result.success:
+            return VerificationResult(
+                verified=True, method="math_cas", confidence=0.45,
+                details=f"SymPy could not evaluate: {result.error}"
+            )
+
         try:
-            expr = re.sub(r'[^0-9+\-*/().^ ]', '', task).strip()
-            if expr:
-                expr = expr.replace('^', '**')
-                expected = eval(expr, {"__builtins__": {}})
-                result = float(numbers[-1])
-                if abs(result - expected) < 0.01:
-                    return VerificationResult(verified=True, method="math", confidence=0.95,
-                                              details=f"Verified: {result} == {expected}")
-                else:
-                    return VerificationResult(verified=False, method="math", confidence=0.9,
-                                              details=f"Mismatch: got {result}, expected {expected}",
-                                              corrections=f"Correct answer: {expected}")
-        except Exception:
-            pass
+            expected = float(result.output)
+            actual = float(numbers_in_output[-1])
+            if abs(actual - expected) < max(0.01, abs(expected) * 0.001):
+                return VerificationResult(
+                    verified=True, method="math_cas", confidence=0.95,
+                    details=f"CAS verified: {actual} ≈ {expected}"
+                )
+            else:
+                return VerificationResult(
+                    verified=False, method="math_cas", confidence=0.92,
+                    details=f"Mismatch: output={actual}, expected={expected}",
+                    corrections=f"Correct answer: {expected}"
+                )
+        except (ValueError, TypeError):
+            return VerificationResult(
+                verified=True, method="math_cas", confidence=0.4,
+                details="Could not compare values numerically"
+            )
 
-        return VerificationResult(verified=True, method="math", confidence=0.5,
-                                  details="Could not compute expected value for comparison")
+    # ------------------------------------------------------------------
+    # Code verification via AST parsing — no subprocess, no execution
+    # ------------------------------------------------------------------
 
-    def _verify_code(self, output: str) -> VerificationResult:
-        """Extract and execute code blocks to verify they run without errors."""
-        if not self._enable_code:
-            return VerificationResult(verified=True, method="code", confidence=0.5,
-                                      details="Code execution disabled")
+    def _verify_code_syntax(self, output: str) -> VerificationResult:
+        """
+        Validate code syntax using AST parsing only. Never executes any code.
 
-        code_blocks = re.findall(r'```(?:python)?\n?([\s\S]+?)```', output)
+        Why AST-only and not execution:
+            Even a restricted subprocess sandbox can be escaped. The only safe
+            option for in-process code validation is static analysis.
+            Actual code correctness (not just syntax) requires an external
+            containerized service (E2B, Docker API, etc.).
+        """
+        code_blocks = re.findall(r"```(?:python)?\n?([\s\S]+?)```", output)
+
         if not code_blocks:
-            return VerificationResult(verified=True, method="code", confidence=0.4,
-                                      details="No executable code block found")
+            return VerificationResult(
+                verified=True, method="code_ast", confidence=0.4,
+                details="No Python code block found"
+            )
 
         code = code_blocks[0]
-        # Safety: only run if no dangerous imports
-        dangerous = ["os.system", "subprocess", "shutil.rmtree", "__import__", "exec(", "eval("]
-        if any(d in code for d in dangerous):
-            return VerificationResult(verified=True, method="code", confidence=0.5,
-                                      details="Code not executed (safety check)")
+        result = validate_code_syntax(code, language="python")
 
-        try:
-            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-                f.write(code)
-                tmpfile = f.name
-
-            result = subprocess.run(
-                ["python", tmpfile], capture_output=True, text=True, timeout=10
+        if result.was_blocked:
+            return VerificationResult(
+                verified=False, method="code_ast", confidence=0.85,
+                details=f"Unsafe code pattern detected: {result.error}",
+                safe_to_execute=False
             )
 
-            if result.returncode == 0:
-                return VerificationResult(verified=True, method="code", confidence=0.9,
-                                          details=f"Code executed successfully. Output: {result.stdout[:200]}")
-            else:
-                return VerificationResult(verified=False, method="code", confidence=0.85,
-                                          details=f"Code error: {result.stderr[:200]}",
-                                          corrections=f"Stderr: {result.stderr[:200]}")
-        except subprocess.TimeoutExpired:
-            return VerificationResult(verified=True, method="code", confidence=0.4,
-                                      details="Code execution timed out")
-        except Exception as e:
-            return VerificationResult(verified=True, method="code", confidence=0.3,
-                                      details=f"Execution failed: {e}")
+        if result.success:
+            return VerificationResult(
+                verified=True, method="code_ast", confidence=0.75,
+                details="Syntax valid (AST parse succeeded). Semantic correctness not verified.",
+                safe_to_execute=False  # Always False — we cannot guarantee safety
+            )
+
+        return VerificationResult(
+            verified=False, method="code_ast", confidence=0.80,
+            details=f"Syntax error: {result.error}"
+        )
+
+    # ------------------------------------------------------------------
+    # Memory cross-check
+    # ------------------------------------------------------------------
 
     def _verify_via_memory(self, output: str, task: str) -> VerificationResult:
-        """Cross-check claims against memory."""
+        """Cross-check output claims against stored semantic memory."""
         try:
-            results = self._memory.query(task, top_k=3)
-            if results and results[0].hit:
-                return VerificationResult(verified=True, method="memory", confidence=0.75,
-                                          details=f"Memory cross-check: {len(results)} relevant facts found")
-        except Exception:
-            pass
-        return VerificationResult(verified=True, method="memory", confidence=0.5,
-                                  details="No memory cross-check data")
+            # Support both sync and async memory managers
+            if hasattr(self._memory, "search"):
+                results = self._memory.search(task, top_k=3)
+            else:
+                results = self._memory.query(task, top_k=3)
 
-    def _looks_mathematical(self, text: str) -> bool:
-        return bool(re.search(r'=\s*-?\d+\.?\d*', text))
+            if results:
+                return VerificationResult(
+                    verified=True, method="memory", confidence=0.72,
+                    details=f"Memory cross-check: {len(results)} relevant facts found"
+                )
+        except Exception as e:
+            logger.debug("Memory verification failed: %s", e)
 
-
-# ===========================================================================
-# Knowledge Gap Detector
-# ===========================================================================
-
-@dataclass
-class KnowledgeGapResult:
-    has_gap: bool
-    gap_description: str
-    recommended_action: str  # "memory" | "tool" | "research" | "none"
-    confidence: float
-
-
-class KnowledgeGapDetector:
-    """
-    Detects when required knowledge is missing before answering.
-    Recommends: search memory → use tools → conduct research.
-    """
-
-    _GAP_INDICATORS = [
-        r"\bi don'?t know\b", r"\buncertain\b", r"\bunsure\b",
-        r"\bno (information|data|knowledge)\b", r"\bcannot (answer|tell|say)\b",
-        r"\boutside (my|the) (knowledge|training)\b",
-        r"\bas of (my|the) (training|knowledge) (cutoff|date)\b",
-    ]
-
-    def __init__(self):
-        self._patterns = [re.compile(p, re.IGNORECASE) for p in self._GAP_INDICATORS]
-
-    def detect(self, task: str, context: Optional[str] = None) -> KnowledgeGapResult:
-        text = f"{task} {context or ''}"
-        gap_found = any(p.search(text) for p in self._patterns)
-
-        # Classify gap type
-        if "recent" in task.lower() or "latest" in task.lower() or "2024" in task or "2025" in task:
-            return KnowledgeGapResult(
-                has_gap=True, gap_description="Requires recent/current information",
-                recommended_action="tool", confidence=0.8
-            )
-        if "specific" in task.lower() and any(
-            w in task.lower() for w in ["fact", "number", "date", "name"]
-        ):
-            return KnowledgeGapResult(
-                has_gap=True, gap_description="Requires specific factual lookup",
-                recommended_action="memory", confidence=0.7
-            )
-        if gap_found:
-            return KnowledgeGapResult(
-                has_gap=True, gap_description="Model indicated knowledge uncertainty",
-                recommended_action="research", confidence=0.75
-            )
-
-        return KnowledgeGapResult(
-            has_gap=False, gap_description="",
-            recommended_action="none", confidence=0.85
+        return VerificationResult(
+            verified=True, method="memory", confidence=0.50,
+            details="No relevant memory facts found for cross-check"
         )
 
+    # ------------------------------------------------------------------
+    # Heuristic fallback
+    # ------------------------------------------------------------------
 
-# ===========================================================================
-# Expert Router
-# ===========================================================================
+    def _heuristic_verify(self, output: str) -> VerificationResult:
+        """
+        Basic heuristic scoring when no domain-specific verifier applies.
+        Uses structural signals: length, completeness, absence of truncation.
+        """
+        issues = []
+        score = 0.7
 
-@dataclass
-class ExpertDecision:
-    selected_experts: List[str]
-    strategy: str  # "single" | "multi" | "consensus"
-    scores: Dict[str, float]
+        if len(output.strip()) < 20:
+            issues.append("very_short_output")
+            score -= 0.3
+        if output.strip() and output.strip()[-1] not in ".!?\"'`\n":
+            if len(output) > 100:
+                issues.append("possibly_truncated")
+                score -= 0.1
+        # Uncertainty language reduces confidence
+        uncertainty_hits = sum(
+            1 for p in [r"\bi think\b", r"\bprobably\b", r"\bmaybe\b"]
+            if re.search(p, output, re.I)
+        )
+        score = max(0.1, score - uncertainty_hits * 0.05)
 
-
-class ExpertRouter:
-    """
-    Routes tasks to specialized skill packs.
-    Supports single, multi-expert collaboration, and consensus generation.
-    """
-
-    def __init__(self, skill_router, registry):
-        self._skill_router = skill_router
-        self._registry = registry
-
-    def route(self, task: str, strategy: str = "single", top_k: int = 2) -> ExpertDecision:
-        decision = self._skill_router.route(task, top_k=top_k, strategy=strategy)
-        return ExpertDecision(
-            selected_experts=decision.selected_packs,
-            strategy=strategy,
-            scores=decision.scores,
+        return VerificationResult(
+            verified=score >= 0.5,
+            method="heuristic",
+            confidence=round(min(1.0, score), 3),
+            details=f"Heuristic check: {', '.join(issues) if issues else 'no issues'}"
         )
 
-    def execute_with_experts(
-        self,
-        task: str,
-        strategy: str = "single",
-        model=None,
-        tokenizer=None,
-    ) -> Dict[str, Any]:
-        """Route task to experts and execute. Merge results for multi/consensus."""
-        expert_decision = self.route(task, strategy=strategy)
-
-        if not expert_decision.selected_experts:
-            return {"output": f"No expert available for: {task}", "confidence": 0.1}
-
-        results = []
-        for expert_name in expert_decision.selected_experts:
-            pack = self._registry.get_or_none("skill_packs", expert_name)
-            if pack:
-                result = pack.process(task, model=model, tokenizer=tokenizer)
-                results.append(result)
-
-        if not results:
-            return {"output": "Expert execution failed", "confidence": 0.0}
-
-        if strategy == "single" or len(results) == 1:
-            r = results[0]
-            return {"output": r.output, "confidence": r.confidence, "expert": expert_decision.selected_experts[0]}
-
-        # Multi/consensus: pick highest confidence
-        best = max(results, key=lambda r: r.confidence)
-        return {
-            "output": best.output,
-            "confidence": best.confidence,
-            "expert": best.skill_name,
-            "all_experts": [r.skill_name for r in results],
-        }
+    @staticmethod
+    def _looks_mathematical(text: str) -> bool:
+        return bool(re.search(r"=\s*-?\d+\.?\d*", text))

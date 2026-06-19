@@ -5,6 +5,7 @@ Uses embedding similarity + learned routing weights for expert selection.
 from __future__ import annotations
 
 import logging
+from collections import deque
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -71,7 +72,8 @@ class SkillRouter:
         self._registry = registry
         self._config = config
         self._embedder = embedding_model  # Optional EmbeddingModel
-        self._routing_history: List[Dict[str, Any]] = []
+        # FIX F10: bounded deque prevents unbounded memory growth
+        self._routing_history: deque = deque(maxlen=10_000)
         self._skill_embeddings: Dict[str, List[float]] = {}
 
     def route(
@@ -184,6 +186,24 @@ class SkillRouter:
         pack = self._registry.get_or_none("skill_packs", skill_name)
         if pack and hasattr(pack, "record_usage"):
             pack.record_usage(success=success, score=score)
+
+    def get_top_skills(self, task: str, top_k: int = 3) -> Tuple[List[str], List[float]]:
+        """
+        Return top-k skills and their scores for a given task.
+        Used by AutoOptimizer to check skill coverage before recommending training.
+        """
+        available_skills = self._registry.list("skill_packs") if self._registry else []
+        if not available_skills:
+            return [], []
+        keyword_scores = self._keyword_score(task, available_skills)
+        emb_scores = self._embedding_score(task, available_skills)
+        combined = {
+            s: 0.6 * keyword_scores.get(s, 0.0) + 0.4 * emb_scores.get(s, 0.0)
+            for s in available_skills
+        }
+        sorted_skills = sorted(combined.items(), key=lambda x: x[1], reverse=True)
+        top = sorted_skills[:top_k]
+        return [name for name, _ in top], [score for _, score in top]
 
     def routing_stats(self) -> Dict[str, Any]:
         skill_counts: Dict[str, int] = {}

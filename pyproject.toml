@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asft"
-version = "0.1.0"
-description = "Adaptive Sparse Fine-Tuning — Next-generation hardware-adaptive AI learning framework"
+version = "0.3.0"
+description = "ASFT — Training Acceleration Framework: Achieve the same or better model capability with dramatically fewer resources."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-keywords = ["machine-learning", "fine-tuning", "sparse-training", "lora", "qlora", "ai"]
+keywords = ["machine-learning", "fine-tuning", "qlora", "lora", "training-acceleration", "knowledge-distillation", "continual-learning"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -24,6 +24,7 @@ dependencies = [
     "torch>=2.1.0",
     "transformers>=4.40.0",
     "peft>=0.10.0",
+    "trl>=0.8.0",
     "accelerate>=0.28.0",
     "bitsandbytes>=0.43.0",
     "safetensors>=0.4.0",
@@ -38,8 +39,6 @@ dependencies = [
     "uvicorn[standard]>=0.29.0",
     "typer>=0.12.0",
     "rich>=13.7.0",
-    "plotly>=5.20.0",
-    "matplotlib>=3.8.0",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
     "psutil>=5.9.0",
@@ -52,12 +51,24 @@ dependencies = [
     "scipy>=1.12.0",
     "filelock>=3.13.0",
     "huggingface-hub>=0.22.0",
+    "sympy>=1.12.0",
 ]
 
 [project.optional-dependencies]
+# Vector index backends
 faiss = ["faiss-cpu>=1.8.0"]
 faiss-gpu = ["faiss-gpu>=1.8.0"]
 qdrant = ["qdrant-client>=1.9.0"]
+# Visualization (NOT in core — install separately)
+viz = [
+    "plotly>=5.20.0",
+    "matplotlib>=3.8.0",
+]
+# Async task queue (optional, for distributed multi-node deployments)
+celery = [
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
@@ -70,6 +81,8 @@ dev = [
 all = [
     "faiss-cpu>=1.8.0",
     "qdrant-client>=1.9.0",
+    "plotly>=5.20.0",
+    "matplotlib>=3.8.0",
 ]
 
 [project.scripts]

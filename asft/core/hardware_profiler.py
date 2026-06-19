@@ -317,6 +317,25 @@ def detect_hardware() -> HardwareProfile:
     return _derive_recommendations(profile)
 
 
+class HardwareProfiler:
+    def __init__(self):
+        self._profile = None
+
+    def profile(self) -> HardwareProfile:
+        self._profile = detect_hardware()
+        return self._profile
+
+    def get_profile(self) -> HardwareProfile:
+        if self._profile is None:
+            return self.profile()
+        return self._profile
+
+    def __str__(self):
+        if self._profile:
+            return self._profile.summary()
+        return "HardwareProfiler(Uninitialized)"
+
+
 if __name__ == "__main__":
     hw = detect_hardware()
     print(hw.summary())

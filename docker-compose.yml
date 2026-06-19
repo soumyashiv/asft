@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  asft-api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: asft:latest
+    container_name: asft-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ASFT_API_AUTH_REQUIRED=true
+      # In production, replace this with a secure comma-separated list of keys
+      - ASFT_API_KEYS=dev_key_1234567890
+      - LOG_LEVEL=INFO
+      - ASFT_DB_PATH=/app/asft_data/jobs.db
+      - ASFT_EPISODIC_DB_PATH=/app/asft_data/episodic.db
+    volumes:
+      - asft_data:/app/asft_data
+    # For GPU support on NVIDIA hosts, uncomment the following:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  asft_data:
+    name: asft_data_volume
