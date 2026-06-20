@@ -2,6 +2,7 @@
 ASFT CLI — Typer-based command-line interface.
 Commands: init, train, skill, memory, benchmark, status, api, compress
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -71,7 +72,9 @@ def init(
 
     console.print(f"\n[bold green]✓[/bold green] Config saved: [cyan]{config_path}[/cyan]")
     console.print(f"[bold green]✓[/bold green] Data dir   : [cyan]{data_dir}[/cyan]")
-    console.print(f"[bold green]✓[/bold green] Recommended: [yellow]{hw.recommended_training_method}[/yellow] with {hw.recommended_precision}")
+    console.print(
+        f"[bold green]✓[/bold green] Recommended: [yellow]{hw.recommended_training_method}[/yellow] with {hw.recommended_precision}"
+    )
 
 
 @app.command()
@@ -91,7 +94,9 @@ def status():
     table.add_row("CUDA", "✓" if hw.has_cuda else "✗")
     table.add_row("GPUs", str(len(hw.gpus)))
     for g in hw.gpus:
-        table.add_row(f"  GPU[{g.index}]", f"{g.name} — {g.vram_free_gb:.1f}/{g.vram_total_gb:.1f} GB free")
+        table.add_row(
+            f"  GPU[{g.index}]", f"{g.name} — {g.vram_free_gb:.1f}/{g.vram_total_gb:.1f} GB free"
+        )
     table.add_row("Recommended Method", hw.recommended_training_method)
     table.add_row("Recommended Precision", hw.recommended_precision)
     table.add_row("Quantization", hw.recommended_quantization)
@@ -105,7 +110,9 @@ def status():
 def train(
     model: str = typer.Option("Qwen/Qwen2-0.5B", "--model", "-m", help="Model name or path"),
     dataset: str = typer.Option(..., "--dataset", "-d", help="JSONL dataset path"),
-    method: str = typer.Option("asft", "--method", help="Training method: full/lora/qlora/sparse/asft"),
+    method: str = typer.Option(
+        "asft", "--method", help="Training method: full/lora/qlora/sparse/asft"
+    ),
     steps: int = typer.Option(100, "--steps", help="Max training steps"),
     sparsity: float = typer.Option(0.95, "--sparsity", help="Sparsity ratio (0–1)"),
     output_dir: str = typer.Option("./asft_data/output", "--output", "-o"),
@@ -115,21 +122,28 @@ def train(
     from asft.core.config import ASFTConfig
     from asft.core.hardware_profiler import detect_hardware
 
-    cfg = ASFTConfig.from_yaml(config_path) if config_path and Path(config_path).exists() else ASFTConfig()
+    cfg = (
+        ASFTConfig.from_yaml(config_path)
+        if config_path and Path(config_path).exists()
+        else ASFTConfig()
+    )
     hw = detect_hardware()
     cfg.apply_hardware_profile(hw)
     cfg.sparse.max_steps = steps
     cfg.sparse.sparsity_ratio = sparsity
 
-    console.print(Panel(
-        f"Model    : [cyan]{model}[/cyan]\n"
-        f"Dataset  : [cyan]{dataset}[/cyan]\n"
-        f"Method   : [yellow]{method}[/yellow]\n"
-        f"Steps    : {steps}\n"
-        f"Sparsity : {sparsity:.0%}\n"
-        f"Precision: {hw.recommended_precision}",
-        title="[bold]ASFT Training[/bold]", border_style="purple"
-    ))
+    console.print(
+        Panel(
+            f"Model    : [cyan]{model}[/cyan]\n"
+            f"Dataset  : [cyan]{dataset}[/cyan]\n"
+            f"Method   : [yellow]{method}[/yellow]\n"
+            f"Steps    : {steps}\n"
+            f"Sparsity : {sparsity:.0%}\n"
+            f"Precision: {hw.recommended_precision}",
+            title="[bold]ASFT Training[/bold]",
+            border_style="purple",
+        )
+    )
 
     if not Path(dataset).exists():
         console.print(f"[bold red]✗[/bold red] Dataset not found: {dataset}")
@@ -142,22 +156,27 @@ def train(
 
         quant = cfg.hardware.quantization or "none"
         with console.status(f"[bold]Loading {model}...[/bold]"):
-            base_model = load_quantized_model(model, quantization=quant, cache_dir=cfg.model.cache_dir)
-            tokenizer = AutoTokenizer.from_pretrained(model, trust_remote_code=True)
+            base_model = load_quantized_model(
+                model, quantization=quant, cache_dir=cfg.model.cache_dir
+            )
+            AutoTokenizer.from_pretrained(model, trust_remote_code=True)
 
         if method in ("lora", "qlora", "asft"):
             from asft.sparse.lora_adapter import LoRAAdapter
+
             adapter = LoRAAdapter(cfg.lora)
-            trained_model = adapter.wrap(base_model, quantization=quant if method == "qlora" else None)
+            adapter.wrap(base_model, quantization=quant if method == "qlora" else None)
             console.print("[bold green]✓[/bold green] LoRA adapter applied")
         else:
-            trained_model = base_model
+            pass
 
-        console.print(f"[bold green]✓[/bold green] Training complete. Output: [cyan]{output_dir}[/cyan]")
+        console.print(
+            f"[bold green]✓[/bold green] Training complete. Output: [cyan]{output_dir}[/cyan]"
+        )
 
     except Exception as e:
         console.print(f"[bold red]✗[/bold red] Training failed: {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 
 @app.command()
@@ -172,26 +191,31 @@ def compress(
         raise typer.Exit(1)
 
     from asft.dataset.compressor import DatasetCompressor
+
     with console.status("[bold]Compressing dataset...[/bold]"):
         try:
             compressor = DatasetCompressor()
             _, report = compressor.compress_jsonl(dataset, output_name=output)
         except Exception as e:
             console.print(f"[bold red]✗[/bold red] Compression failed: {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1)  # noqa: B904
 
-    console.print(Panel(
-        f"Original : {report['original_count']} samples\n"
-        f"Final    : {report['final_count']} samples\n"
-        f"Reduction: {report.get('total_reduction', 0):.1%}\n"
-        f"Output   : {report.get('output_path', '')}",
-        title="[bold green]✓ Compression Complete[/bold green]", border_style="green"
-    ))
+    console.print(
+        Panel(
+            f"Original : {report['original_count']} samples\n"
+            f"Final    : {report['final_count']} samples\n"
+            f"Reduction: {report.get('total_reduction', 0):.1%}\n"
+            f"Output   : {report.get('output_path', '')}",
+            title="[bold green]✓ Compression Complete[/bold green]",
+            border_style="green",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Skill subcommands
 # ---------------------------------------------------------------------------
+
 
 @skill_app.command("list")
 def skill_list():
@@ -203,8 +227,14 @@ def skill_list():
     from asft.skills.packs.research import ResearchSkillPack
     from asft.skills.packs.trading import TradingSkillPack
 
-    packs = [CodingSkillPack(), ResearchSkillPack(), PlanningSkillPack(),
-             MathematicsSkillPack(), TradingSkillPack(), AutomationSkillPack()]
+    packs = [
+        CodingSkillPack(),
+        ResearchSkillPack(),
+        PlanningSkillPack(),
+        MathematicsSkillPack(),
+        TradingSkillPack(),
+        AutomationSkillPack(),
+    ]
 
     table = Table(title="ASFT Skill Packs", border_style="purple")
     table.add_column("Name", style="cyan")
@@ -228,8 +258,14 @@ def skill_route(task: str = typer.Argument(..., help="Task to route")):
     from asft.skills.packs.trading import TradingSkillPack
     from asft.skills.skill_router import SkillRouter
 
-    for Pack in [CodingSkillPack, ResearchSkillPack, PlanningSkillPack,
-                 MathematicsSkillPack, TradingSkillPack, AutomationSkillPack]:
+    for Pack in [
+        CodingSkillPack,
+        ResearchSkillPack,
+        PlanningSkillPack,
+        MathematicsSkillPack,
+        TradingSkillPack,
+        AutomationSkillPack,
+    ]:
         p = Pack()
         registry.register_skill(p.meta.name, p)
 
@@ -247,6 +283,7 @@ def skill_route(task: str = typer.Argument(..., help="Task to route")):
 # Memory subcommands
 # ---------------------------------------------------------------------------
 
+
 @memory_app.command("query")
 def memory_query(
     query: str = typer.Argument(...),
@@ -254,15 +291,17 @@ def memory_query(
 ):
     """Query the memory system."""
     from asft.core.config import ASFTConfig
+
     cfg = ASFTConfig.from_yaml(config) if config and Path(config).exists() else ASFTConfig()
     from asft.memory.memory_manager import MemoryManager
+
     with console.status("Querying memory..."):
         try:
             mm = MemoryManager(config=cfg)
             results = mm.query(query, top_k=5)
         except Exception as e:
             console.print(f"[red]Memory query failed: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1)  # noqa: B904
 
     console.print(f"\n[bold]Query:[/bold] {query}")
     for r in results:
@@ -273,15 +312,17 @@ def memory_query(
 def memory_stats(config: str | None = typer.Option(None, "--config", "-c")):
     """Show memory system statistics."""
     from asft.core.config import ASFTConfig
+
     cfg = ASFTConfig.from_yaml(config) if config and Path(config).exists() else ASFTConfig()
     from asft.memory.memory_manager import MemoryManager
+
     with console.status("Loading memory stats..."):
         try:
             mm = MemoryManager(config=cfg)
             stats = mm.stats()
         except Exception as e:
             console.print(f"[red]Failed: {e}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1)  # noqa: B904
     table = Table(title="Memory Statistics", border_style="purple")
     table.add_column("System", style="cyan")
     table.add_column("Count", style="yellow")
@@ -295,13 +336,16 @@ def memory_stats(config: str | None = typer.Option(None, "--config", "-c")):
 # Benchmark subcommands
 # ---------------------------------------------------------------------------
 
+
 @benchmark_app.command("hardware")
 def benchmark_hardware():
     """Run hardware detection and display capability report."""
     from asft.core.hardware_profiler import detect_hardware
+
     with console.status("Profiling hardware..."):
         hw = detect_hardware()
     console.print(Panel(hw.summary(), title="[bold]Hardware Profile[/bold]", border_style="purple"))
+
 
 @benchmark_app.command("run")
 def benchmark_run(
@@ -312,23 +356,26 @@ def benchmark_run(
     import uuid
 
     from asft.workers.tasks import run_benchmark_task
-    
+
     claims = ["accuracy", "resources"] if claim == "all" else [claim]
-    
+
     for c in claims:
         job_id = str(uuid.uuid4())
         kwargs = {}
         if c == "accuracy":
             kwargs["tasks"] = ["mmlu", "gsm8k", "truthfulqa_gen"]
-            
+
         console.print(f"[bold cyan]Dispatching {c} benchmark for {model}...[/bold cyan]")
         run_benchmark_task.apply_async(
             kwargs={"claim_type": c, "model_path": model, "kwargs": kwargs, "job_id": job_id},
-            task_id=job_id
+            task_id=job_id,
         )
         console.print(f"[bold green]✓[/bold green] Job {job_id} queued.")
-        
-    console.print("Use the WebSocket API or `asft benchmark history` to view results once completed.")
+
+    console.print(
+        "Use the WebSocket API or `asft benchmark history` to view results once completed."
+    )
+
 
 @benchmark_app.command("history")
 def benchmark_history():
@@ -337,19 +384,21 @@ def benchmark_history():
 
     from asft.db.database import SessionLocal
     from asft.db.models import BenchmarkResult
-    
+
     db = SessionLocal()
     try:
-        results = db.query(BenchmarkResult).order_by(BenchmarkResult.timestamp.desc()).limit(10).all()
-        
+        results = (
+            db.query(BenchmarkResult).order_by(BenchmarkResult.timestamp.desc()).limit(10).all()
+        )
+
         table = Table(title="Recent Benchmarks", border_style="purple")
         table.add_column("Date", style="cyan")
         table.add_column("Claim", style="yellow")
         table.add_column("Model")
         table.add_column("Summary")
-        
+
         for r in results:
-            dt = datetime.fromtimestamp(r.timestamp).strftime('%Y-%m-%d %H:%M')
+            dt = datetime.fromtimestamp(r.timestamp).strftime("%Y-%m-%d %H:%M")
             # Extract simple summary
             if r.claim_type == "resources":
                 summary = f"VRAM: {r.metrics.get('peak_vram_gb_used', 0):.2f}GB, Time: {r.metrics.get('execution_time_seconds', 0):.1f}s"
@@ -361,23 +410,28 @@ def benchmark_history():
                     summary = f"Tasks: {len(r.metrics.get('tasks', []))}"
             else:
                 summary = "..."
-                
+
             table.add_row(dt, r.claim_type, r.model_name, summary)
-            
+
         console.print(table)
     finally:
         db.close()
+
 
 # ---------------------------------------------------------------------------
 # Database subcommands
 # ---------------------------------------------------------------------------
 
+
 @db_app.command("upgrade")
-def db_upgrade(revision: str = typer.Argument("head", help="Revision to upgrade to (default: head)")):
+def db_upgrade(
+    revision: str = typer.Argument("head", help="Revision to upgrade to (default: head)")
+):
     """Run Alembic database migrations."""
     from alembic.config import Config
 
     from alembic import command
+
     console.print(f"[bold cyan]Upgrading database to {revision}...[/bold cyan]")
     try:
         alembic_cfg = Config("alembic.ini")
@@ -385,7 +439,7 @@ def db_upgrade(revision: str = typer.Argument("head", help="Revision to upgrade 
         console.print("[bold green]✓ Database upgrade complete.[/bold green]")
     except Exception as e:
         console.print(f"[bold red]✗ Database upgrade failed: {e}[/bold red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
 
 @app.command()
@@ -396,8 +450,11 @@ def serve(
     reload: bool = typer.Option(False, help="Auto-reload on code changes"),
 ):
     """[bold]Start[/bold] the ASFT REST API server for production."""
-    console.print(f"[bold green]Starting ASFT API on http://{host}:{port} with {workers} workers[/bold green]")
+    console.print(
+        f"[bold green]Starting ASFT API on http://{host}:{port} with {workers} workers[/bold green]"
+    )
     import uvicorn
+
     uvicorn.run("asft.api.server:app", host=host, port=port, workers=workers, reload=reload)
 
 

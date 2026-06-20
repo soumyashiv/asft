@@ -3,6 +3,7 @@ Self-Critique Engine — Reviews model outputs before finalizing.
 Detects logical errors, contradictions, hallucinations, and weak reasoning.
 Automatically revises answers when issues are detected.
 """
+
 from __future__ import annotations
 
 import logging
@@ -77,7 +78,9 @@ class SelfCritiqueEngine:
                 break
 
             all_issues.extend(issues)
-            logger.info("SelfCritique round %d: %d issues found: %s", round_num, len(issues), issues)
+            logger.info(
+                "SelfCritique round %d: %d issues found: %s", round_num, len(issues), issues
+            )
 
             if generate_fn is None:
                 # No model available — mark issues but cannot revise
@@ -118,7 +121,7 @@ class SelfCritiqueEngine:
 
     def _detect_contradictions(self, text: str) -> list[str]:
         """Detect obvious contradictions using negation patterns."""
-        sentences = [s.strip() for s in re.split(r'[.!?]', text) if len(s.strip()) > 10]
+        sentences = [s.strip() for s in re.split(r"[.!?]", text) if len(s.strip()) > 10]
         issues = []
         for i in range(len(sentences)):
             for j in range(i + 1, min(i + 5, len(sentences))):
@@ -150,8 +153,12 @@ class SelfCritiqueEngine:
     def _detect_logical_gaps(self, text: str) -> list[str]:
         """Detect reasoning gaps — conclusions without supporting reasoning."""
         issues = []
-        has_conclusion = any(w in text.lower() for w in ["therefore", "thus", "hence", "so", "conclusion"])
-        has_reasoning = any(w in text.lower() for w in ["because", "since", "given that", "due to", "as a result"])
+        has_conclusion = any(
+            w in text.lower() for w in ["therefore", "thus", "hence", "so", "conclusion"]
+        )
+        has_reasoning = any(
+            w in text.lower() for w in ["because", "since", "given that", "due to", "as a result"]
+        )
         if has_conclusion and not has_reasoning and len(text) > 100:
             issues.append("conclusion_without_reasoning")
         return issues
@@ -166,8 +173,9 @@ class SelfCritiqueEngine:
                 issues.append("response_appears_truncated")
         return issues
 
-    def _build_revision_prompt(self, original_task: str, current_output: str,
-                                issues: list[str]) -> str:
+    def _build_revision_prompt(
+        self, original_task: str, current_output: str, issues: list[str]
+    ) -> str:
         issues_str = "\n".join(f"  - {issue}" for issue in issues)
         return (
             f"Review and improve this response. The following issues were detected:\n"

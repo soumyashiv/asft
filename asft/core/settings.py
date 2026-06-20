@@ -10,6 +10,7 @@ Examples:
     ASFT_MAX_TRAINING_WORKERS=2
     ASFT_DB_PATH=/data/asft/episodic.db
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,6 +58,7 @@ class ASFTSettings(BaseSettings):
     @property
     def allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins_str.split(",") if o.strip()]
+
     rate_limit_per_minute: int = Field(default=120, ge=1, le=10_000)
     rate_limit_burst: int = Field(default=30, ge=1, le=1_000)
     host: str = Field(default="0.0.0.0")
@@ -133,7 +135,7 @@ class ASFTSettings(BaseSettings):
         description="Secret key for signing JWT tokens.",
     )
     jwt_algorithm: str = Field(default="HS256")
-    jwt_access_token_expire_minutes: int = Field(default=60 * 24 * 7) # 1 week
+    jwt_access_token_expire_minutes: int = Field(default=60 * 24 * 7)  # 1 week
 
     # ------------------------------------------------------------------
     # Training Defaults

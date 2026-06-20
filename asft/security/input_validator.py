@@ -9,6 +9,7 @@ this module before processing. This prevents:
   - Null-byte injection
   - Control character injection
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,10 +25,10 @@ logger = logging.getLogger(__name__)
 # Limits
 # ---------------------------------------------------------------------------
 
-MAX_TASK_LENGTH: int = 8_000      # characters
+MAX_TASK_LENGTH: int = 8_000  # characters
 MAX_CONTEXT_LENGTH: int = 32_000  # characters
-MAX_QUERY_LENGTH: int = 2_000     # characters
-MAX_FACT_LENGTH: int = 1_000      # characters
+MAX_QUERY_LENGTH: int = 2_000  # characters
+MAX_FACT_LENGTH: int = 1_000  # characters
 MAX_DATASET_PATH_LENGTH: int = 512
 
 # ---------------------------------------------------------------------------
@@ -41,10 +42,13 @@ _INJECTION_PATTERNS: list[re.Pattern] = [
     re.compile(r"disregard (your |the )?(previous |prior )?(instructions?|rules?)", re.I),
     re.compile(r"forget (everything |all )?(above|previous|instructions?)", re.I),
     # System prompt leaking
-    re.compile(r"(reveal|show|print|output|repeat|display) (your |the )?(system )?(prompt|instructions?)", re.I),
+    re.compile(
+        r"(reveal|show|print|output|repeat|display) (your |the )?(system )?(prompt|instructions?)",
+        re.I,
+    ),
     re.compile(r"(what (are|were) your (instructions?|rules?|system prompt))", re.I),
     # Jailbreak keywords
-    re.compile(r"\bDAN\b"),             # "Do Anything Now" jailbreak
+    re.compile(r"\bDAN\b"),  # "Do Anything Now" jailbreak
     re.compile(r"jailbreak", re.I),
     re.compile(r"developer mode", re.I),
     re.compile(r"act as (a |an )?(different|new|unrestricted|unfiltered)", re.I),
@@ -90,6 +94,7 @@ def _check_injection(text: str) -> str | None:
 @dataclass
 class ValidatedInput:
     """A sanitised, validated input string."""
+
     value: str
     original_length: int
     sanitised: bool  # True if any chars were stripped
@@ -120,8 +125,9 @@ def validate_task(task: str, max_length: int = MAX_TASK_LENGTH) -> ValidatedInpu
     # Injection check on the cleaned text
     matched_pattern = _check_injection(cleaned)
     if matched_pattern:
-        logger.warning("Prompt injection detected | pattern=%s | snippet=%s",
-                       matched_pattern, cleaned[:80])
+        logger.warning(
+            "Prompt injection detected | pattern=%s | snippet=%s", matched_pattern, cleaned[:80]
+        )
         raise PromptInjectionError(
             "Input contains patterns associated with prompt injection attacks."
         )
@@ -175,9 +181,7 @@ def validate_dataset_path(path: str) -> str:
         )
 
     # Only allow safe characters in paths
-    if not re.match(r'^[\w\s\-_./\\:]+$', path):
-        raise InputValidationError(
-            "Dataset path contains disallowed characters."
-        )
+    if not re.match(r"^[\w\s\-_./\\:]+$", path):
+        raise InputValidationError("Dataset path contains disallowed characters.")
 
     return path

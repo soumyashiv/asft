@@ -4,6 +4,7 @@ ASFT API Schemas — All Pydantic v2 request and response models.
 Centralising all schemas here enforces consistent validation across
 all endpoints and makes API contract changes easy to find and audit.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -167,8 +168,7 @@ class CompressRequest(BaseModel):
     text_field: str = Field("text", min_length=1, max_length=64)
     output_name: str = Field("compressed", min_length=1, max_length=128)
     embedding_model: str = Field(
-        "all-MiniLM-L6-v2",
-        description="SentenceTransformer model for clustering"
+        "all-MiniLM-L6-v2", description="SentenceTransformer model for clustering"
     )
 
 
@@ -245,40 +245,44 @@ class ErrorResponse(BaseModel):
 
 class EstimateRequest(BaseModel):
     """Request a cost/time estimate before committing to a training job."""
-    model_name: str = Field(..., min_length=2, max_length=256,
-                            description="HuggingFace model identifier")
-    dataset_size: int = Field(..., ge=1, le=100_000_000,
-                              description="Number of training samples")
+
+    model_name: str = Field(
+        ..., min_length=2, max_length=256, description="HuggingFace model identifier"
+    )
+    dataset_size: int = Field(..., ge=1, le=100_000_000, description="Number of training samples")
     method: str = Field("qlora", description="Training method: peft_lora | qlora")
     target_accuracy_gain: float = Field(
-        0.05, ge=0.0, le=1.0,
-        description="Desired accuracy improvement (0.05 = 5%)"
+        0.05, ge=0.0, le=1.0, description="Desired accuracy improvement (0.05 = 5%)"
     )
 
 
 class EstimateResponse(BaseModel):
     """Cost and time projection for a proposed training job."""
+
     estimated_gpu_hours: float
     estimated_cost_usd: float
     estimated_accuracy_gain: float
-    recommendation: str          # "proceed" | "use_qlora" | "retrieve" | "use_skill" | "reject"
+    recommendation: str  # "proceed" | "use_qlora" | "retrieve" | "use_skill" | "reject"
     reasoning: str
-    roi_score: float             # expected accuracy gain per dollar
+    roi_score: float  # expected accuracy gain per dollar
 
 
 class OptimizeRequest(BaseModel):
     """Ask the AutoOptimizer what the cheapest path to capability is."""
+
     task: str = Field(..., min_length=1, max_length=8_000)
     domain: str = Field("general", max_length=64)
     target_accuracy: float = Field(0.8, ge=0.0, le=1.0)
-    budget_usd: float | None = Field(None, ge=0.0,
-                                        description="Max spend in USD. None = no budget limit.")
+    budget_usd: float | None = Field(
+        None, ge=0.0, description="Max spend in USD. None = no budget limit."
+    )
     allow_training: bool = Field(True, description="Allow training as a fallback option.")
 
 
 class OptimizeResponse(BaseModel):
     """AutoOptimizer decision result."""
-    recommended_action: str   # "use_memory" | "use_skill" | "use_qlora" | "use_lora" | "distill"
+
+    recommended_action: str  # "use_memory" | "use_skill" | "use_qlora" | "use_lora" | "distill"
     reasoning: str
     estimated_cost_usd: float
     alternatives: list[dict[str, Any]]
@@ -291,14 +295,13 @@ class OptimizeResponse(BaseModel):
 
 class SampleSelectRequest(BaseModel):
     """Request adaptive sample selection on a dataset."""
+
     dataset_path: str = Field(..., min_length=1, max_length=512)
     model_name: str = Field(..., min_length=2, max_length=256)
-    method: str = Field(
-        "perplexity",
-        description="Selection method: perplexity | el2n | random"
+    method: str = Field("perplexity", description="Selection method: perplexity | el2n | random")
+    keep_fraction: float = Field(
+        0.3, ge=0.05, le=1.0, description="Fraction of samples to keep (0.3 = keep 30%)"
     )
-    keep_fraction: float = Field(0.3, ge=0.05, le=1.0,
-                                 description="Fraction of samples to keep (0.3 = keep 30%)")
     text_field: str = Field("text", max_length=64)
 
 
@@ -315,13 +318,19 @@ class SampleSelectResponse(BaseModel):
 
 class DistillRequest(BaseModel):
     """Request knowledge distillation from a teacher to a student model."""
+
     teacher_model: str = Field(..., min_length=2, max_length=256)
     student_model: str = Field(..., min_length=2, max_length=256)
     dataset_path: str = Field(..., min_length=1, max_length=512)
-    temperature: float = Field(4.0, ge=1.0, le=20.0,
-                               description="Distillation temperature (Hinton 2015). Higher = softer targets.")
-    alpha: float = Field(0.5, ge=0.0, le=1.0,
-                         description="Weight between hard labels (1.0) and soft targets (0.0)")
+    temperature: float = Field(
+        4.0,
+        ge=1.0,
+        le=20.0,
+        description="Distillation temperature (Hinton 2015). Higher = softer targets.",
+    )
+    alpha: float = Field(
+        0.5, ge=0.0, le=1.0, description="Weight between hard labels (1.0) and soft targets (0.0)"
+    )
     max_steps: int = Field(500, ge=1, le=50_000)
 
 
@@ -329,4 +338,3 @@ class DistillResponse(BaseModel):
     job_id: str
     status: str
     message: str = "Distillation job queued"
-

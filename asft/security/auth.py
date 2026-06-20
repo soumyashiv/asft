@@ -15,6 +15,7 @@ Design:
   - Failed auth attempts are always logged to the security audit trail.
   - The middleware never reveals WHY authentication failed to the caller.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -55,6 +56,7 @@ def _load_valid_key_hashes() -> set[str]:
     if not raw:
         # Dev-mode: generate a random ephemeral key and log it once
         import secrets
+
         ephemeral = secrets.token_urlsafe(32)
         logger.warning(
             "ASFT_API_KEYS not set. Generated ephemeral key for this session: %s", ephemeral

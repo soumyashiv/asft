@@ -29,6 +29,7 @@ Honest performance claims for PEFT vs full fine-tuning:
   - Accuracy: <2% degradation vs full fine-tune (validated by LoRA paper)
   These are realistic. The original 80–90% claims are not supportable.
 """
+
 from __future__ import annotations
 
 import logging
@@ -75,7 +76,10 @@ class PEFTTrainer(ITrainer):
 
         logger.info(
             "PEFTTrainer | job=%s model=%s method=%s steps=%d",
-            job_id, config.model_name, config.method, config.max_steps,
+            job_id,
+            config.model_name,
+            config.method,
+            config.max_steps,
         )
 
         try:
@@ -85,19 +89,18 @@ class PEFTTrainer(ITrainer):
             sft_trainer = self._build_sft_trainer(model, tokenizer, dataset, config)
 
             from asft.training.checkpoint_manager import CheckpointManager
+
             checkpoint_manager = CheckpointManager(job_id=job_id)
             sft_trainer.add_callback(checkpoint_manager)
 
             logger.info("Starting SFTTrainer.train()")
-            
+
             # Determine resume checkpoint
             resume_path = CheckpointManager.get_latest_checkpoint(job_id)
             if not resume_path:
                 resume_path = self._find_checkpoint(config.output_dir)
 
-            sft_trainer.train(
-                resume_from_checkpoint=resume_path
-            )
+            sft_trainer.train(resume_from_checkpoint=resume_path)
 
             # Save adapter weights only
             output_path = Path(config.output_dir) / job_id
@@ -148,9 +151,7 @@ class PEFTTrainer(ITrainer):
 
         logger.info("Loading model: %s (quantization=%s)", config.model_name, config.quantization)
 
-        tokenizer = AutoTokenizer.from_pretrained(
-            config.model_name, trust_remote_code=True
-        )
+        tokenizer = AutoTokenizer.from_pretrained(config.model_name, trust_remote_code=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
 
@@ -158,6 +159,7 @@ class PEFTTrainer(ITrainer):
         if config.quantization in ("4bit", "qlora"):
             try:
                 from transformers import BitsAndBytesConfig
+
                 bnb_config = BitsAndBytesConfig(
                     load_in_4bit=True,
                     bnb_4bit_quant_type="nf4",
@@ -170,6 +172,7 @@ class PEFTTrainer(ITrainer):
         elif config.quantization == "8bit":
             try:
                 from transformers import BitsAndBytesConfig
+
                 bnb_config = BitsAndBytesConfig(load_in_8bit=True)
             except ImportError:
                 logger.warning("bitsandbytes not available — loading in fp32")
@@ -189,9 +192,7 @@ class PEFTTrainer(ITrainer):
         from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
         if config.quantization in ("4bit", "qlora", "8bit"):
-            model = prepare_model_for_kbit_training(
-                model, use_gradient_checkpointing=True
-            )
+            model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
         lora_config = LoraConfig(
             r=config.lora_r,
@@ -200,15 +201,24 @@ class PEFTTrainer(ITrainer):
             bias="none",
             task_type="CAUSAL_LM",
             # Target common transformer attention projection layers
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
-                            "gate_proj", "up_proj", "down_proj"],
+            target_modules=[
+                "q_proj",
+                "k_proj",
+                "v_proj",
+                "o_proj",
+                "gate_proj",
+                "up_proj",
+                "down_proj",
+            ],
         )
 
         model = get_peft_model(model, lora_config)
         trainable, total = self._count_params(model)
         logger.info(
             "LoRA applied: %d/%d trainable params (%.2f%% of total)",
-            trainable, total, 100 * trainable / max(1, total)
+            trainable,
+            total,
+            100 * trainable / max(1, total),
         )
         return model
 
@@ -221,9 +231,7 @@ class PEFTTrainer(ITrainer):
             raise FileNotFoundError(f"Dataset not found: {config.dataset_path}")
 
         logger.info("Loading dataset: %s", config.dataset_path)
-        dataset = load_dataset(
-            "json", data_files=str(path), split="train"
-        )
+        dataset = load_dataset("json", data_files=str(path), split="train")
         logger.info("Dataset loaded: %d samples", len(dataset))
         return dataset
 
@@ -252,7 +260,7 @@ class PEFTTrainer(ITrainer):
             bf16=torch.cuda.is_available() and torch.cuda.is_bf16_supported(),
             use_cpu=not torch.cuda.is_available(),
             gradient_checkpointing=True,
-            report_to=[],          # disable wandb/tensorboard in base config
+            report_to=[],  # disable wandb/tensorboard in base config
             max_length=1024,
             packing=False,
             fsdp=config.fsdp,
@@ -275,6 +283,7 @@ class PEFTTrainer(ITrainer):
     def _find_checkpoint(output_dir: str) -> str | None:
         """Look for the latest checkpoint to resume from."""
         from transformers.trainer_utils import get_last_checkpoint
+
         try:
             return get_last_checkpoint(output_dir)
         except Exception:

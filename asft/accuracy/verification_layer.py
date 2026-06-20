@@ -29,6 +29,7 @@ PRODUCTION CODE EXECUTION (if needed):
     external sandboxed service (e.g., E2B, Firecracker, Docker API).
     Never execute LLM code in-process on the API server.
 """
+
 from __future__ import annotations
 
 import logging
@@ -43,9 +44,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VerificationResult:
     """Result of output verification."""
+
     verified: bool
-    method: str             # "math_cas" | "code_ast" | "memory" | "heuristic" | "none"
-    confidence: float       # 0–1
+    method: str  # "math_cas" | "code_ast" | "memory" | "heuristic" | "none"
+    confidence: float  # 0–1
     details: str = ""
     corrections: str | None = None
     safe_to_execute: bool = False  # Always False — we never execute LLM code
@@ -69,8 +71,7 @@ class VerificationLayer:
         """Route to the appropriate safe verification method."""
         if not output or not output.strip():
             return VerificationResult(
-                verified=False, method="none", confidence=0.1,
-                details="Empty output"
+                verified=False, method="none", confidence=0.1, details="Empty output"
             )
 
         if task_type in ("mathematics", "math") or self._looks_mathematical(output):
@@ -107,22 +108,28 @@ class VerificationLayer:
 
         if not numbers_in_output:
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.4,
-                details="No numeric result found to verify"
+                verified=True,
+                method="math_cas",
+                confidence=0.4,
+                details="No numeric result found to verify",
             )
 
         if not task_expr or len(task_expr) < 3:
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.5,
-                details="Task expression too complex for symbolic extraction"
+                verified=True,
+                method="math_cas",
+                confidence=0.5,
+                details="Task expression too complex for symbolic extraction",
             )
 
         result = verify_math_with_sympy(task_expr.replace("^", "**"))
 
         if not result.success:
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.45,
-                details=f"SymPy could not evaluate: {result.error}"
+                verified=True,
+                method="math_cas",
+                confidence=0.45,
+                details=f"SymPy could not evaluate: {result.error}",
             )
 
         try:
@@ -130,19 +137,25 @@ class VerificationLayer:
             actual = float(numbers_in_output[-1])
             if abs(actual - expected) < max(0.01, abs(expected) * 0.001):
                 return VerificationResult(
-                    verified=True, method="math_cas", confidence=0.95,
-                    details=f"CAS verified: {actual} ≈ {expected}"
+                    verified=True,
+                    method="math_cas",
+                    confidence=0.95,
+                    details=f"CAS verified: {actual} ≈ {expected}",
                 )
             else:
                 return VerificationResult(
-                    verified=False, method="math_cas", confidence=0.92,
+                    verified=False,
+                    method="math_cas",
+                    confidence=0.92,
                     details=f"Mismatch: output={actual}, expected={expected}",
-                    corrections=f"Correct answer: {expected}"
+                    corrections=f"Correct answer: {expected}",
                 )
         except (ValueError, TypeError):
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.4,
-                details="Could not compare values numerically"
+                verified=True,
+                method="math_cas",
+                confidence=0.4,
+                details="Could not compare values numerically",
             )
 
     # ------------------------------------------------------------------
@@ -163,8 +176,10 @@ class VerificationLayer:
 
         if not code_blocks:
             return VerificationResult(
-                verified=True, method="code_ast", confidence=0.4,
-                details="No Python code block found"
+                verified=True,
+                method="code_ast",
+                confidence=0.4,
+                details="No Python code block found",
             )
 
         code = code_blocks[0]
@@ -172,21 +187,27 @@ class VerificationLayer:
 
         if result.was_blocked:
             return VerificationResult(
-                verified=False, method="code_ast", confidence=0.85,
+                verified=False,
+                method="code_ast",
+                confidence=0.85,
                 details=f"Unsafe code pattern detected: {result.error}",
-                safe_to_execute=False
+                safe_to_execute=False,
             )
 
         if result.success:
             return VerificationResult(
-                verified=True, method="code_ast", confidence=0.75,
+                verified=True,
+                method="code_ast",
+                confidence=0.75,
                 details="Syntax valid (AST parse succeeded). Semantic correctness not verified.",
-                safe_to_execute=False  # Always False — we cannot guarantee safety
+                safe_to_execute=False,  # Always False — we cannot guarantee safety
             )
 
         return VerificationResult(
-            verified=False, method="code_ast", confidence=0.80,
-            details=f"Syntax error: {result.error}"
+            verified=False,
+            method="code_ast",
+            confidence=0.80,
+            details=f"Syntax error: {result.error}",
         )
 
     # ------------------------------------------------------------------
@@ -204,15 +225,19 @@ class VerificationLayer:
 
             if results:
                 return VerificationResult(
-                    verified=True, method="memory", confidence=0.72,
-                    details=f"Memory cross-check: {len(results)} relevant facts found"
+                    verified=True,
+                    method="memory",
+                    confidence=0.72,
+                    details=f"Memory cross-check: {len(results)} relevant facts found",
                 )
         except Exception as e:
             logger.debug("Memory verification failed: %s", e)
 
         return VerificationResult(
-            verified=True, method="memory", confidence=0.50,
-            details="No relevant memory facts found for cross-check"
+            verified=True,
+            method="memory",
+            confidence=0.50,
+            details="No relevant memory facts found for cross-check",
         )
 
     # ------------------------------------------------------------------
@@ -236,8 +261,7 @@ class VerificationLayer:
                 score -= 0.1
         # Uncertainty language reduces confidence
         uncertainty_hits = sum(
-            1 for p in [r"\bi think\b", r"\bprobably\b", r"\bmaybe\b"]
-            if re.search(p, output, re.I)
+            1 for p in [r"\bi think\b", r"\bprobably\b", r"\bmaybe\b"] if re.search(p, output, re.I)
         )
         score = max(0.1, score - uncertainty_hits * 0.05)
 
@@ -245,7 +269,7 @@ class VerificationLayer:
             verified=score >= 0.5,
             method="heuristic",
             confidence=round(min(1.0, score), 3),
-            details=f"Heuristic check: {', '.join(issues) if issues else 'no issues'}"
+            details=f"Heuristic check: {', '.join(issues) if issues else 'no issues'}",
         )
 
     @staticmethod

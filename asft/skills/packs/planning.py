@@ -1,4 +1,5 @@
 """Planning Skill Pack — Project planning, task decomposition, and strategy."""
+
 from __future__ import annotations
 
 import time
@@ -9,7 +10,9 @@ from asft.skills.skill_pack import SkillPack, SkillResult
 class PlanningSkillPack(SkillPack):
     def __init__(self, pack_dir=None):
         super().__init__("planning", pack_dir)
-        self.meta.description = "Strategic planning, task decomposition, roadmaps, and project management"
+        self.meta.description = (
+            "Strategic planning, task decomposition, roadmaps, and project management"
+        )
         self.meta.domain = "planning"
         self.meta.tags = ["planning", "strategy", "project", "roadmap", "tasks"]
 
@@ -30,16 +33,24 @@ class PlanningSkillPack(SkillPack):
         confidence = self._estimate_confidence(output)
         self.record_usage(success=True, score=confidence)
         return SkillResult(
-            skill_name=self.meta.name, output=output,
-            confidence=confidence, duration_seconds=round(duration, 3),
+            skill_name=self.meta.name,
+            output=output,
+            confidence=confidence,
+            duration_seconds=round(duration, 3),
             metadata={"steps_detected": output.count("\n- ") + output.count("\n1.")},
         )
 
     def evaluate(self, sample_input: str, sample_output: str) -> float:
-        has_phases = any(w in sample_output.lower() for w in ["phase", "step", "milestone", "stage"])
+        has_phases = any(
+            w in sample_output.lower() for w in ["phase", "step", "milestone", "stage"]
+        )
         has_list = "\n-" in sample_output or "\n1." in sample_output
         has_timeline = any(w in sample_output.lower() for w in ["week", "day", "month", "hour"])
-        score = (0.4 if has_phases else 0.0) + (0.3 if has_list else 0.0) + (0.3 if has_timeline else 0.0)
+        score = (
+            (0.4 if has_phases else 0.0)
+            + (0.3 if has_list else 0.0)
+            + (0.3 if has_timeline else 0.0)
+        )
         return min(1.0, score + 0.1)
 
     def _run_model(self, prompt, model, tokenizer):
@@ -51,7 +62,10 @@ class PlanningSkillPack(SkillPack):
 
     def _estimate_confidence(self, output: str) -> float:
         score = 0.3
-        if len(output) > 200: score += 0.2
-        if "\n" in output: score += 0.2
-        if any(w in output.lower() for w in ["step", "phase", "milestone"]): score += 0.3
+        if len(output) > 200:
+            score += 0.2
+        if "\n" in output:
+            score += 0.2
+        if any(w in output.lower() for w in ["step", "phase", "milestone"]):
+            score += 0.3
         return min(1.0, score)

@@ -58,6 +58,7 @@ RECOMMENDED USE:
     Always validate on a held-out set. Do not rely on this for compute savings
     without also using sparse kernels (cuSPARSE) or sparse hardware.
 """
+
 from __future__ import annotations
 
 import logging
@@ -73,17 +74,19 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SparseTrainingConfig:
     """Configuration for dynamic sparse training."""
-    target_sparsity: float = 0.80       # Fraction of weights to keep ZEROED
-    update_interval: int = 100          # Steps between mask updates (RigL update frequency)
-    warmup_steps: int = 200             # Steps before first mask update (stabilize training)
-    drop_fraction: float = 0.20         # Fraction of mask to update per cycle (20% = conservative)
-    sparsity_schedule: str = "constant" # "constant" | "linear" (gradually increase sparsity)
+
+    target_sparsity: float = 0.80  # Fraction of weights to keep ZEROED
+    update_interval: int = 100  # Steps between mask updates (RigL update frequency)
+    warmup_steps: int = 200  # Steps before first mask update (stabilize training)
+    drop_fraction: float = 0.20  # Fraction of mask to update per cycle (20% = conservative)
+    sparsity_schedule: str = "constant"  # "constant" | "linear" (gradually increase sparsity)
     target_layers: list[str] | None = None  # Layer name substrings to target; None = all Linear
 
 
 @dataclass
 class SparsityReport:
     """Report on current sparsity state."""
+
     step: int
     target_sparsity: float
     actual_sparsity: float
@@ -152,9 +155,11 @@ class DynamicSparseMask:
         n_total = sum(m.numel() for m in self._masks.values())
         n_active = sum(m.sum().item() for m in self._masks.values())
         logger.info(
-            "DynamicSparseMask initialized: %d layers | %.1f%% sparsity | "
-            "%d/%d weights active",
-            n_layers, 100 * (1 - n_active / max(1, n_total)), int(n_active), n_total
+            "DynamicSparseMask initialized: %d layers | %.1f%% sparsity | " "%d/%d weights active",
+            n_layers,
+            100 * (1 - n_active / max(1, n_total)),
+            int(n_active),
+            n_total,
         )
 
     def apply(self) -> None:

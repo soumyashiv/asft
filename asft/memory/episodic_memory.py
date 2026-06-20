@@ -26,6 +26,7 @@ THREAD SAFETY:
     The _touch() update (access count) uses a DEFERRED write (batched every 100 reads)
     to avoid a write transaction on every read (FIX F14).
 """
+
 from __future__ import annotations
 
 import json
@@ -47,6 +48,7 @@ _TOUCH_BUFFER_MAXSIZE = 100
 @dataclass
 class Episode:
     """A single stored episode."""
+
     id: str
     content: str
     task: str = ""
@@ -106,9 +108,7 @@ class EpisodicMemory:
                     metadata     TEXT DEFAULT '{}'
                 )
             """)
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_episodes_timestamp ON episodes(timestamp)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_episodes_timestamp ON episodes(timestamp)")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_episodes_confidence ON episodes(confidence)"
             )
@@ -147,23 +147,26 @@ class EpisodicMemory:
         episode.id = ep_id
 
         with self._connect() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO episodes
                 (id, content, task, source, tags, confidence, timestamp, access_count,
                  last_accessed, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                ep_id,
-                episode.content,
-                episode.task,
-                episode.source,
-                json.dumps(episode.tags),
-                episode.confidence,
-                episode.timestamp or time.time(),
-                episode.access_count,
-                episode.last_accessed or time.time(),
-                json.dumps(episode.metadata),
-            ))
+            """,
+                (
+                    ep_id,
+                    episode.content,
+                    episode.task,
+                    episode.source,
+                    json.dumps(episode.tags),
+                    episode.confidence,
+                    episode.timestamp or time.time(),
+                    episode.access_count,
+                    episode.last_accessed or time.time(),
+                    json.dumps(episode.metadata),
+                ),
+            )
             conn.commit()
 
         self._maybe_prune()
@@ -191,7 +194,8 @@ class EpisodicMemory:
 
         with self._connect() as conn:
             try:
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT e.id, e.content, e.task, e.source, e.tags,
                            e.confidence, e.timestamp, e.access_count,
                            e.last_accessed, e.metadata
@@ -201,11 +205,14 @@ class EpisodicMemory:
                       AND e.confidence >= ?
                     ORDER BY rank  -- FTS5 BM25 relevance score
                     LIMIT ?
-                """, (safe_query, min_confidence, top_k)).fetchall()
+                """,
+                    (safe_query, min_confidence, top_k),
+                ).fetchall()
             except sqlite3.OperationalError as e:
                 # Fall back to simple LIKE if FTS5 query syntax is malformed
                 logger.warning("FTS5 query failed (%s), falling back to LIKE", e)
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT id, content, task, source, tags, confidence,
                            timestamp, access_count, last_accessed, metadata
                     FROM episodes
@@ -213,7 +220,9 @@ class EpisodicMemory:
                       AND confidence >= ?
                     ORDER BY confidence DESC, timestamp DESC
                     LIMIT ?
-                """, (f"%{query_text}%", f"%{query_text}%", min_confidence, top_k)).fetchall()
+                """,
+                    (f"%{query_text}%", f"%{query_text}%", min_confidence, top_k),
+                ).fetchall()
 
         episodes = [self._row_to_episode(r) for r in rows]
 
@@ -233,7 +242,7 @@ class EpisodicMemory:
                 "SELECT id, content, task, source, tags, confidence, "
                 "timestamp, access_count, last_accessed, metadata "
                 "FROM episodes WHERE id = ?",
-                (episode_id,)
+                (episode_id,),
             ).fetchone()
         return self._row_to_episode(row) if row else None
 
@@ -285,7 +294,7 @@ class EpisodicMemory:
                 conn.executemany(
                     "UPDATE episodes SET access_count = access_count + 1, "
                     "last_accessed = ? WHERE id = ?",
-                    [(now, ep_id) for ep_id in ids]
+                    [(now, ep_id) for ep_id in ids],
                 )
                 conn.commit()
         except Exception as e:
@@ -299,13 +308,16 @@ class EpisodicMemory:
                 return
             n_remove = total - self._max_items
             # Remove LRU (lowest access_count, then oldest)
-            conn.execute("""
+            conn.execute(
+                """
                 DELETE FROM episodes WHERE id IN (
                     SELECT id FROM episodes
                     ORDER BY access_count ASC, timestamp ASC
                     LIMIT ?
                 )
-            """, (n_remove,))
+            """,
+                (n_remove,),
+            )
             conn.commit()
             logger.debug("Pruned %d old episodes", n_remove)
 

@@ -60,8 +60,8 @@ class HardwareProfile:
     free_vram_gb: float = 0.0
 
     # ---- Recommendations ----
-    recommended_precision: str = "fp32"        # fp32 / fp16 / bf16 / int8 / int4
-    recommended_quantization: str = "none"     # none / 8bit / 4bit
+    recommended_precision: str = "fp32"  # fp32 / fp16 / bf16 / int8 / int4
+    recommended_quantization: str = "none"  # none / 8bit / 4bit
     recommended_training_method: str = "lora"  # full / lora / qlora / sparse / asft
     recommended_batch_size: int = 1
     recommended_gradient_checkpointing: bool = False
@@ -163,8 +163,11 @@ def _detect_gpus() -> tuple[list[GPUInfo], bool, bool]:
         # Fallback: try nvidia-smi
         try:
             out = subprocess.check_output(
-                ["nvidia-smi", "--query-gpu=name,memory.total,memory.free",
-                 "--format=csv,noheader,nounits"],
+                [
+                    "nvidia-smi",
+                    "--query-gpu=name,memory.total,memory.free",
+                    "--format=csv,noheader,nounits",
+                ],
                 timeout=5,
                 text=True,
                 stderr=subprocess.DEVNULL,
@@ -194,6 +197,7 @@ def _check_flash_attention(has_cuda: bool) -> bool:
         return False
     try:
         import flash_attn  # noqa: F401
+
         return True
     except ImportError:
         return False

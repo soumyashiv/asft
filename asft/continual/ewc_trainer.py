@@ -61,6 +61,7 @@ HYPERPARAMETER GUIDANCE:
         - Language generation: λ ∈ [1000, 5000]
         - Start with 1000 and tune based on Task A performance after Task B training
 """
+
 from __future__ import annotations
 
 import logging
@@ -75,9 +76,10 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EWCConfig:
     """Configuration for EWC continual learning."""
-    ewc_lambda: float = 1000.0          # Regularization strength λ
-    n_fisher_samples: int = 200         # Batches to estimate Fisher Information
-    online_ewc: bool = False            # Online EWC (single running Fisher) vs standard
+
+    ewc_lambda: float = 1000.0  # Regularization strength λ
+    n_fisher_samples: int = 200  # Batches to estimate Fisher Information
+    online_ewc: bool = False  # Online EWC (single running Fisher) vs standard
     fisher_estimation_batch_size: int = 4
 
 
@@ -181,16 +183,14 @@ class EWCRegularizer:
         self._task_count += 1
 
         # Compute summary statistics for logging
-        mean_fisher = {
-            name: float(f.mean())
-            for name, f in self._fisher.items()
-        }
+        mean_fisher = {name: float(f.mean()) for name, f in self._fisher.items()}
         max_fisher_param = max(mean_fisher, key=mean_fisher.get) if mean_fisher else "none"
         logger.info(
-            "Fisher computed: %d params | n_batches=%d | "
-            "top param: %s (%.4f)",
-            len(self._fisher), n_batches, max_fisher_param,
-            mean_fisher.get(max_fisher_param, 0)
+            "Fisher computed: %d params | n_batches=%d | " "top param: %s (%.4f)",
+            len(self._fisher),
+            n_batches,
+            max_fisher_param,
+            mean_fisher.get(max_fisher_param, 0),
         )
         return mean_fisher
 

@@ -2,6 +2,7 @@
 Skill Router — Automatically routes tasks to the best skill pack(s).
 Uses embedding similarity + learned routing weights for expert selection.
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,34 +25,116 @@ class RoutingDecision:
 # Keyword-based domain hints for fast routing
 _DOMAIN_KEYWORDS: dict[str, list[str]] = {
     "coding": [
-        "code", "python", "javascript", "function", "class", "bug", "debug",
-        "algorithm", "implement", "script", "api", "compile", "syntax", "error",
-        "program", "software", "github", "git", "sql", "query",
+        "code",
+        "python",
+        "javascript",
+        "function",
+        "class",
+        "bug",
+        "debug",
+        "algorithm",
+        "implement",
+        "script",
+        "api",
+        "compile",
+        "syntax",
+        "error",
+        "program",
+        "software",
+        "github",
+        "git",
+        "sql",
+        "query",
     ],
     "research": [
-        "research", "study", "analyze", "paper", "literature", "find", "search",
-        "investigate", "explore", "discover", "survey", "evidence", "data",
-        "statistics", "hypothesis", "experiment",
+        "research",
+        "study",
+        "analyze",
+        "paper",
+        "literature",
+        "find",
+        "search",
+        "investigate",
+        "explore",
+        "discover",
+        "survey",
+        "evidence",
+        "data",
+        "statistics",
+        "hypothesis",
+        "experiment",
     ],
     "planning": [
-        "plan", "schedule", "roadmap", "steps", "strategy", "milestone", "task",
-        "project", "timeline", "organize", "priority", "goal", "objective",
-        "workflow", "process", "breakdown",
+        "plan",
+        "schedule",
+        "roadmap",
+        "steps",
+        "strategy",
+        "milestone",
+        "task",
+        "project",
+        "timeline",
+        "organize",
+        "priority",
+        "goal",
+        "objective",
+        "workflow",
+        "process",
+        "breakdown",
     ],
     "mathematics": [
-        "calculate", "compute", "math", "equation", "formula", "integral",
-        "derivative", "algebra", "geometry", "statistics", "probability",
-        "linear", "matrix", "solve", "proof", "theorem",
+        "calculate",
+        "compute",
+        "math",
+        "equation",
+        "formula",
+        "integral",
+        "derivative",
+        "algebra",
+        "geometry",
+        "statistics",
+        "probability",
+        "linear",
+        "matrix",
+        "solve",
+        "proof",
+        "theorem",
     ],
     "trading": [
-        "trade", "stock", "market", "price", "portfolio", "investment", "forex",
-        "crypto", "option", "futures", "technical", "fundamental", "chart",
-        "trend", "indicator", "signal", "risk",
+        "trade",
+        "stock",
+        "market",
+        "price",
+        "portfolio",
+        "investment",
+        "forex",
+        "crypto",
+        "option",
+        "futures",
+        "technical",
+        "fundamental",
+        "chart",
+        "trend",
+        "indicator",
+        "signal",
+        "risk",
     ],
     "automation": [
-        "automate", "script", "workflow", "trigger", "schedule", "repeat",
-        "batch", "pipeline", "task", "cron", "bot", "agent", "tool",
-        "process", "deploy",
+        "automate",
+        "script",
+        "workflow",
+        "trigger",
+        "schedule",
+        "repeat",
+        "batch",
+        "pipeline",
+        "task",
+        "cron",
+        "bot",
+        "agent",
+        "tool",
+        "process",
+        "deploy",
     ],
 }
 
@@ -90,8 +173,11 @@ class SkillRouter:
         if not available_skills:
             logger.warning("No skill packs registered.")
             return RoutingDecision(
-                task_input=task_input, selected_packs=[], scores={},
-                strategy=strategy, reason="No skill packs available"
+                task_input=task_input,
+                selected_packs=[],
+                scores={},
+                strategy=strategy,
+                reason="No skill packs available",
             )
 
         # Step 1: keyword scoring
@@ -132,7 +218,9 @@ class SkillRouter:
             reason=f"keyword={keyword_scores}, embedding={emb_scores}",
         )
         self._routing_history.append({"decision": decision, "input_snippet": task_input[:100]})
-        logger.info("Routed to: %s (scores=%s)", selected, {k: round(v, 3) for k, v in combined.items()})
+        logger.info(
+            "Routed to: %s (scores=%s)", selected, {k: round(v, 3) for k, v in combined.items()}
+        )
         return decision
 
     def _keyword_score(self, text: str, skills: list[str]) -> dict[str, float]:
@@ -150,6 +238,7 @@ class SkillRouter:
             return {s: 0.0 for s in skills}
         try:
             import numpy as np
+
             query_emb = self._embedder.encode_one(text)
 
             scores: dict[str, float] = {}

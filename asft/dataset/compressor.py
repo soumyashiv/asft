@@ -2,6 +2,7 @@
 Dataset Compressor — Full end-to-end compression pipeline.
 Deduplicate → Cluster → Select → Export compressed dataset.
 """
+
 from __future__ import annotations
 
 import json
@@ -29,7 +30,11 @@ class DatasetCompressor:
         num_perm = getattr(config, "dedup_num_perm", 128) if config else 128
         cluster_method = getattr(config, "cluster_method", "kmeans") if config else "kmeans"
         reduction_ratio = getattr(config, "cluster_reduction_ratio", 0.3) if config else 0.3
-        output_dir = getattr(config, "compressed_output_dir", "./asft_data/datasets") if config else "./asft_data/datasets"
+        output_dir = (
+            getattr(config, "compressed_output_dir", "./asft_data/datasets")
+            if config
+            else "./asft_data/datasets"
+        )
 
         from asft.dataset.clusterer import DatasetClusterer
         from asft.dataset.deduplicator import DatasetDeduplicator
@@ -77,6 +82,7 @@ class DatasetCompressor:
             cluster_stats = {"skipped": True, "n_samples": len(texts)}
         else:
             import numpy as np
+
             embeddings = self._clusterer.embed_texts(texts, model_name=embedding_model)
             cluster_labels, cluster_stats = self._clusterer.cluster(embeddings)
         report["clustering"] = cluster_stats
@@ -86,13 +92,16 @@ class DatasetCompressor:
         logger.info("Stage 3: Representative selection")
         if not cluster_stats.get("skipped"):
             import numpy as np
+
             selected_indices, sel_stats = self._selector.select(
                 embeddings=embeddings,
                 cluster_labels=np.array(cluster_labels),
                 texts=texts,
             )
             compressed_texts = [texts[i] for i in selected_indices]
-            compressed_meta = [metadata[int(ids[i])] for i in selected_indices] if metadata else None
+            compressed_meta = (
+                [metadata[int(ids[i])] for i in selected_indices] if metadata else None
+            )
         else:
             compressed_texts = texts
             compressed_meta = metadata
@@ -117,11 +126,16 @@ class DatasetCompressor:
 
         logger.info(
             "Compression complete: %d → %d (%.1f%% reduction) → %s",
-            original_count, len(compressed_texts), report["total_reduction"] * 100, output_path,
+            original_count,
+            len(compressed_texts),
+            report["total_reduction"] * 100,
+            output_path,
         )
         return compressed_texts, report
 
-    def compress_jsonl(self, input_path: str, text_field: str = "text", **kwargs) -> tuple[list[str], dict]:
+    def compress_jsonl(
+        self, input_path: str, text_field: str = "text", **kwargs
+    ) -> tuple[list[str], dict]:
         """Load a JSONL dataset, compress it, and save."""
         texts = []
         meta = []

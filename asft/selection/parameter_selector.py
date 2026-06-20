@@ -59,6 +59,7 @@ FAILURE MODES:
       critical bottleneck layer gains almost nothing
     - Random seed sensitivity: gradient and fisher scores are noisy across runs
 """
+
 from __future__ import annotations
 
 import logging
@@ -71,6 +72,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ParameterImportanceReport:
     """Result of parameter importance analysis."""
+
     method: str
     total_params: int
     selected_params: int
@@ -139,7 +141,9 @@ class ParameterSelector:
 
         logger.info(
             "ParameterSelector: method=%s sparsity=%.2f adjusted_sparsity=%.2f",
-            self._method, self._sparsity, adjusted_sparsity
+            self._method,
+            self._sparsity,
+            adjusted_sparsity,
         )
 
         warnings = []
@@ -154,7 +158,9 @@ class ParameterSelector:
             return self._from_activation_report(activation_report, adjusted_sparsity)
         else:
             if dataloader is None and self._method != "magnitude":
-                warnings.append(f"Method '{self._method}' requires a dataloader. Falling back to magnitude.")
+                warnings.append(
+                    f"Method '{self._method}' requires a dataloader. Falling back to magnitude."
+                )
             scores = self._score_magnitude()
 
         return self._build_report(scores, n_keep_fraction, warnings)
@@ -168,13 +174,12 @@ class ParameterSelector:
             should_train = name in report.selected_param_names
             param.requires_grad_(should_train)
 
-        actual_trainable = sum(
-            p.numel() for p in self._model.parameters() if p.requires_grad
-        )
+        actual_trainable = sum(p.numel() for p in self._model.parameters() if p.requires_grad)
         logger.info(
             "ParameterSelector applied: %d/%d params trainable (%.2f%%)",
-            actual_trainable, self._param_count,
-            100 * actual_trainable / max(1, self._param_count)
+            actual_trainable,
+            self._param_count,
+            100 * actual_trainable / max(1, self._param_count),
         )
 
     # ------------------------------------------------------------------
@@ -223,9 +228,7 @@ class ParameterSelector:
 
         self._model.train()
         accum: dict[str, float] = {
-            name: 0.0
-            for name, p in self._model.named_parameters()
-            if p.requires_grad
+            name: 0.0 for name, p in self._model.named_parameters() if p.requires_grad
         }
         n_batches = 0
 
@@ -235,7 +238,8 @@ class ParameterSelector:
             try:
                 if isinstance(batch, dict):
                     inputs = {
-                        k: v for k, v in batch.items()
+                        k: v
+                        for k, v in batch.items()
                         if k in ("input_ids", "attention_mask", "labels")
                     }
                     out = self._model(**inputs)
@@ -279,7 +283,7 @@ class ParameterSelector:
 
         return self._build_report_from_selection(
             selected=selected,
-            layer_scores={l: 1.0 for l in top_layers},
+            layer_scores={l: 1.0 for l in top_layers},  # noqa: E741
             method="activation",
             warnings=[],
         )
@@ -293,8 +297,11 @@ class ParameterSelector:
         """Convert scores to a selection report."""
         if not scores:
             return ParameterImportanceReport(
-                method=self._method, total_params=self._param_count,
-                selected_params=0, trainable_fraction=0.0, warnings=warnings
+                method=self._method,
+                total_params=self._param_count,
+                selected_params=0,
+                trainable_fraction=0.0,
+                warnings=warnings,
             )
 
         sorted_params = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -315,10 +322,7 @@ class ParameterSelector:
         method: str,
         warnings: list[str],
     ) -> ParameterImportanceReport:
-        param_sizes = {
-            name: p.numel()
-            for name, p in self._model.named_parameters()
-        }
+        param_sizes = {name: p.numel() for name, p in self._model.named_parameters()}
         selected_count = sum(param_sizes.get(name, 0) for name in selected)
         top_layers = sorted(layer_scores, key=lambda k: layer_scores[k], reverse=True)[:10]
 

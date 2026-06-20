@@ -2,6 +2,7 @@
 Activation Analyzer — Hooks into transformer forward passes to collect
 activation statistics for neuron/layer importance ranking.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,8 +22,8 @@ class LayerActivationStats:
     mean_activation: float = 0.0
     std_activation: float = 0.0
     max_activation: float = 0.0
-    sparsity: float = 0.0        # fraction of zero activations
-    gradient_norm: float = 0.0   # L2 norm of gradients (if available)
+    sparsity: float = 0.0  # fraction of zero activations
+    gradient_norm: float = 0.0  # L2 norm of gradients (if available)
     num_samples: int = 0
 
     @property
@@ -109,6 +110,7 @@ class ActivationAnalyzer:
                 stats.max_activation = float(flat.max())
                 stats.sparsity = float((flat == 0).float().mean())
                 stats.num_samples += 1
+
         return hook
 
     def collect_gradient_norms(self) -> None:

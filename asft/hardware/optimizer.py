@@ -3,6 +3,7 @@ Hardware-Adaptive Optimization — Quantizer, Offloader, and Batch Scheduler.
 Auto-selects quantization levels, offloading strategies, and batch sizes
 based on the current hardware profile. No manual tuning required.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 # ===========================================================================
 # Quantizer
 # ===========================================================================
+
 
 class Quantizer:
     """
@@ -73,8 +75,9 @@ class Quantizer:
         logger.info("Model loaded: %s", model_name)
         return model
 
-    def estimate_memory_gb(self, n_params_billions: float, precision: str,
-                            quantization: str) -> float:
+    def estimate_memory_gb(
+        self, n_params_billions: float, precision: str, quantization: str
+    ) -> float:
         """Estimate peak GPU memory for a model."""
         base_gb = n_params_billions * 2  # fp16 baseline
         if quantization == "4bit":
@@ -91,6 +94,7 @@ class Quantizer:
 # ===========================================================================
 # CPU Offloader
 # ===========================================================================
+
 
 class Offloader:
     """
@@ -128,14 +132,16 @@ class Offloader:
 # Batch Scheduler
 # ===========================================================================
 
+
 class BatchScheduler:
     """
     Dynamically selects optimal batch size based on available VRAM/RAM.
     Includes OOM recovery with automatic batch size reduction.
     """
 
-    def __init__(self, initial_batch_size: int = 1, min_batch_size: int = 1,
-                 max_batch_size: int = 64):
+    def __init__(
+        self, initial_batch_size: int = 1, min_batch_size: int = 1, max_batch_size: int = 64
+    ):
         self._batch_size = initial_batch_size
         self._min = min_batch_size
         self._max = max_batch_size
@@ -147,10 +153,7 @@ class BatchScheduler:
 
     def recommend_from_hardware(self, profile) -> int:
         """Set batch size from hardware profile recommendations."""
-        self._batch_size = min(
-            self._max,
-            max(self._min, profile.recommended_batch_size)
-        )
+        self._batch_size = min(self._max, max(self._min, profile.recommended_batch_size))
         return self._batch_size
 
     def on_oom(self) -> int:
@@ -167,6 +170,7 @@ class BatchScheduler:
     def safe_run(self, fn, *args, **kwargs) -> Any:
         """Run fn with automatic OOM recovery."""
         import torch
+
         while self._batch_size >= self._min:
             try:
                 return fn(*args, **kwargs)
@@ -176,7 +180,9 @@ class BatchScheduler:
                         torch.cuda.empty_cache()
                     new_bs = self.on_oom()
                     if new_bs < self._min:
-                        raise RuntimeError("Batch size cannot be reduced further — OOM")
+                        raise RuntimeError(
+                            "Batch size cannot be reduced further — OOM"
+                        )  # noqa: B904
                     logger.info("Retrying with batch_size=%d", new_bs)
                 else:
                     raise

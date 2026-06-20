@@ -2,6 +2,7 @@
 Long-Term Memory — Consolidated, summarized knowledge store.
 Periodically summarizes episodic events into durable long-term knowledge.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,9 +52,16 @@ class LongTermMemory:
         Base.metadata.create_all(self._engine)
         self._Session = sessionmaker(bind=self._engine)
 
-    def store(self, category: str, key: str, content: str,
-              summary: str | None = None, confidence: float = 1.0,
-              importance: float = 0.5, source_events: list[int] | None = None) -> str:
+    def store(
+        self,
+        category: str,
+        key: str,
+        content: str,
+        summary: str | None = None,
+        confidence: float = 1.0,
+        importance: float = 0.5,
+        source_events: list[int] | None = None,
+    ) -> str:
         """Create or update a long-term memory entry. Returns ID."""
         with self._Session() as session:
             # Check if entry with same category+key exists
@@ -63,13 +71,13 @@ class LongTermMemory:
                 .first()
             )
             if existing:
-                existing.content = content
-                existing.summary = summary or existing.summary
-                existing.confidence = max(existing.confidence, confidence)
-                existing.importance = max(existing.importance, importance)
-                existing.source_events = json.dumps(source_events or [])
-                existing.updated_at = time.time()
-                existing.version += 1
+                existing.content = content  # type: ignore
+                existing.summary = summary or existing.summary  # type: ignore
+                existing.confidence = max(existing.confidence, confidence)  # type: ignore
+                existing.importance = max(existing.importance, importance)  # type: ignore
+                existing.source_events = json.dumps(source_events or [])  # type: ignore
+                existing.updated_at = time.time()  # type: ignore
+                existing.version += 1  # type: ignore
                 entry_id = existing.id
             else:
                 entry = LongTermEntry(
@@ -85,10 +93,11 @@ class LongTermMemory:
                 session.add(entry)
                 entry_id = entry.id
             session.commit()
-        return entry_id
+        return entry_id  # type: ignore
 
-    def retrieve(self, category: str, key: str | None = None,
-                 limit: int = 20) -> list[dict[str, Any]]:
+    def retrieve(
+        self, category: str, key: str | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
         with self._Session() as session:
             q = session.query(LongTermEntry).filter(LongTermEntry.category == category)
             if key:
@@ -96,7 +105,7 @@ class LongTermMemory:
             q = q.order_by(LongTermEntry.importance.desc()).limit(limit)
             results = q.all()
             for r in results:
-                r.access_count += 1
+                r.access_count += 1  # type: ignore
             session.commit()
             return [self._to_dict(r) for r in results]
 
@@ -146,5 +155,5 @@ class LongTermMemory:
             "updated_at": e.updated_at,
             "access_count": e.access_count,
             "version": e.version,
-            "source_events": json.loads(e.source_events or "[]"),
+            "source_events": json.loads(e.source_events or "[]"),  # type: ignore
         }

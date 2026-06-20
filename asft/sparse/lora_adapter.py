@@ -3,6 +3,7 @@ LoRA / QLoRA Adapter — PEFT-based LoRA integration for ASFT.
 Used as a hybrid with sparse training or as a standalone method.
 Supports auto-detection of target modules.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 # Common target modules per architecture
 _TARGET_MODULES_MAP = {
-    "llama":  ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-    "mistral":["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-    "qwen2":  ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-    "phi":    ["q_proj", "k_proj", "v_proj", "dense", "fc1", "fc2"],
-    "gpt2":   ["c_attn", "c_proj", "c_fc"],
-    "bert":   ["query", "key", "value", "dense"],
-    "default":["q_proj", "v_proj"],
+    "llama": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "mistral": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "qwen2": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "phi": ["q_proj", "k_proj", "v_proj", "dense", "fc1", "fc2"],
+    "gpt2": ["c_attn", "c_proj", "c_fc"],
+    "bert": ["query", "key", "value", "dense"],
+    "default": ["q_proj", "v_proj"],
 }
 
 
@@ -52,7 +53,7 @@ class LoRAAdapter:
         try:
             from peft import LoraConfig, TaskType, get_peft_model, prepare_model_for_kbit_training
         except ImportError:
-            raise ImportError("Install peft: pip install peft")
+            raise ImportError("Install peft: pip install peft")  # noqa: B904
 
         cfg = self._config
         target_modules = cfg.target_modules or _detect_target_modules(model)
@@ -87,6 +88,7 @@ class LoRAAdapter:
     def load(self, base_model, adapter_path: str) -> object:
         """Load a saved LoRA adapter onto a base model."""
         from peft import PeftModel
+
         self._peft_model = PeftModel.from_pretrained(base_model, adapter_path)
         logger.info("LoRA adapter loaded from %s", adapter_path)
         return self._peft_model
@@ -110,8 +112,12 @@ class LoRAAdapter:
         return sum(p.numel() for p in self._peft_model.parameters())
 
 
-def load_quantized_model(model_name: str, quantization: str = "4bit",
-                          cache_dir: str | None = None, trust_remote_code: bool = True):
+def load_quantized_model(
+    model_name: str,
+    quantization: str = "4bit",
+    cache_dir: str | None = None,
+    trust_remote_code: bool = True,
+):
     """
     Load a HuggingFace model with bitsandbytes quantization for QLoRA.
     """

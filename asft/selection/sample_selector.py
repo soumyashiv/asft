@@ -53,6 +53,7 @@ LIMITATION WARNING:
     (CIFAR, ImageNet). For language model fine-tuning, reduction is typically
     50–80% before accuracy starts degrading. Always validate on held-out eval.
 """
+
 from __future__ import annotations
 
 import logging
@@ -67,6 +68,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SelectionReport:
     """Summary of sample selection operation."""
+
     method: str
     original_count: int
     selected_count: int
@@ -140,18 +142,20 @@ class AdaptiveSampleSelector:
             (selected_samples, SelectionReport)
         """
         # Normalize input
-        texts = [
-            s[text_field] if isinstance(s, dict) else s
-            for s in samples
-        ]
+        texts = [s[text_field] if isinstance(s, dict) else s for s in samples]
         n = len(texts)
 
         if n == 0:
             return [], SelectionReport(
-                method=self._method, original_count=0, selected_count=0,
-                rejected_count=0, keep_fraction=self._keep_fraction,
-                actual_fraction=0.0, avg_score_kept=0.0, avg_score_rejected=0.0,
-                warnings=["Empty dataset"]
+                method=self._method,
+                original_count=0,
+                selected_count=0,
+                rejected_count=0,
+                keep_fraction=self._keep_fraction,
+                actual_fraction=0.0,
+                avg_score_kept=0.0,
+                avg_score_rejected=0.0,
+                warnings=["Empty dataset"],
             )
 
         warnings = []
@@ -163,15 +167,23 @@ class AdaptiveSampleSelector:
                 "Returning all samples."
             )
             return list(samples), SelectionReport(
-                method="skip_too_small", original_count=n, selected_count=n,
-                rejected_count=0, keep_fraction=self._keep_fraction,
-                actual_fraction=1.0, avg_score_kept=0.0, avg_score_rejected=0.0,
-                warnings=warnings
+                method="skip_too_small",
+                original_count=n,
+                selected_count=n,
+                rejected_count=0,
+                keep_fraction=self._keep_fraction,
+                actual_fraction=1.0,
+                avg_score_kept=0.0,
+                avg_score_rejected=0.0,
+                warnings=warnings,
             )
 
         logger.info(
             "AdaptiveSampleSelector: method=%s n=%d keep=%d (%.0f%%)",
-            self._method, n, n_keep, self._keep_fraction * 100
+            self._method,
+            n,
+            n_keep,
+            self._keep_fraction * 100,
         )
 
         if self._method == "random":
@@ -279,7 +291,7 @@ class AdaptiveSampleSelector:
         scores = []
 
         with torch.no_grad():
-            for text, label in zip(texts, labels):
+            for text, label in zip(texts, labels, strict=False):
                 try:
                     enc = tokenizer(
                         text,
@@ -317,6 +329,7 @@ class AdaptiveSampleSelector:
         if device == "auto":
             try:
                 import torch
+
                 return "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 return "cpu"

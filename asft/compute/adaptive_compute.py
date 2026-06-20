@@ -39,6 +39,7 @@ HONEST LIMITATIONS:
       looks easy may have a complex answer.
     - Calibration of the threshold values requires domain-specific validation.
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,16 +52,18 @@ logger = logging.getLogger(__name__)
 
 class ComputeTier(str, Enum):
     """Compute allocation tier."""
-    MINIMAL = "minimal"     # Memory lookup or 1-pass forward
-    LOW = "low"             # Single forward pass, small model
-    MEDIUM = "medium"       # Standard inference, full model
-    HIGH = "high"           # Multi-pass reasoning, full model
-    MAXIMUM = "maximum"     # Ensemble or extended reasoning
+
+    MINIMAL = "minimal"  # Memory lookup or 1-pass forward
+    LOW = "low"  # Single forward pass, small model
+    MEDIUM = "medium"  # Standard inference, full model
+    HIGH = "high"  # Multi-pass reasoning, full model
+    MAXIMUM = "maximum"  # Ensemble or extended reasoning
 
 
 @dataclass
 class ComputeDecision:
     """Result of compute budget routing."""
+
     tier: ComputeTier
     max_new_tokens: int
     n_reasoning_passes: int
@@ -72,28 +75,42 @@ class ComputeDecision:
 
 # Compute budgets per tier
 _TIER_BUDGETS = {
-    ComputeTier.MINIMAL:  dict(max_new_tokens=50,   n_passes=1, full_model=False, skip_critique=True),
-    ComputeTier.LOW:      dict(max_new_tokens=150,  n_passes=1, full_model=True,  skip_critique=True),
-    ComputeTier.MEDIUM:   dict(max_new_tokens=512,  n_passes=1, full_model=True,  skip_critique=False),
-    ComputeTier.HIGH:     dict(max_new_tokens=1024, n_passes=2, full_model=True,  skip_critique=False),
-    ComputeTier.MAXIMUM:  dict(max_new_tokens=2048, n_passes=3, full_model=True,  skip_critique=False),
+    ComputeTier.MINIMAL: dict(max_new_tokens=50, n_passes=1, full_model=False, skip_critique=True),
+    ComputeTier.LOW: dict(max_new_tokens=150, n_passes=1, full_model=True, skip_critique=True),
+    ComputeTier.MEDIUM: dict(max_new_tokens=512, n_passes=1, full_model=True, skip_critique=False),
+    ComputeTier.HIGH: dict(max_new_tokens=1024, n_passes=2, full_model=True, skip_critique=False),
+    ComputeTier.MAXIMUM: dict(
+        max_new_tokens=2048, n_passes=3, full_model=True, skip_critique=False
+    ),
 }
 
 # Patterns that suggest high complexity
 _HIGH_COMPLEXITY_PATTERNS = [
-    r"\bprove\b", r"\bderive\b", r"\bexplain\s+(why|how)\b",
-    r"\boptimize\b", r"\bdesign\b", r"\barchitecture\b",
-    r"\bcomplex\b", r"\badvanced\b", r"\bcomprehensive\b",
+    r"\bprove\b",
+    r"\bderive\b",
+    r"\bexplain\s+(why|how)\b",
+    r"\boptimize\b",
+    r"\bdesign\b",
+    r"\barchitecture\b",
+    r"\bcomplex\b",
+    r"\badvanced\b",
+    r"\bcomprehensive\b",
     r"\bimplement\b.{0,50}\b(algorithm|system|framework)\b",
-    r"\bmulti.step\b", r"\bchain\b", r"\bsequential\b",
+    r"\bmulti.step\b",
+    r"\bchain\b",
+    r"\bsequential\b",
 ]
 
 # Patterns that suggest low complexity
 _LOW_COMPLEXITY_PATTERNS = [
     r"^(what|who|where|when)\s+(is|are|was|were)\b",
-    r"\bdefine\b", r"\blist\b", r"\bname\b",
-    r"\byes or no\b", r"\btrue or false\b",
-    r"\bhow\s+many\b", r"\bhow\s+much\b",
+    r"\bdefine\b",
+    r"\blist\b",
+    r"\bname\b",
+    r"\byes or no\b",
+    r"\btrue or false\b",
+    r"\bhow\s+many\b",
+    r"\bhow\s+much\b",
     r"\bwhat\s+does\s+\w+\s+stand\s+for\b",
 ]
 
@@ -157,7 +174,11 @@ class ComputeBudgetRouter:
 
         logger.debug(
             "ComputeRouter: %s → %s (conf=%.2f) | tokens=%d passes=%d",
-            task[:60], tier.value, confidence, max_tokens, budget["n_passes"]
+            task[:60],
+            tier.value,
+            confidence,
+            max_tokens,
+            budget["n_passes"],
         )
         return decision
 

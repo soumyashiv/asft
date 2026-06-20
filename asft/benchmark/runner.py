@@ -2,6 +2,7 @@
 Benchmarking Suite — Measures training time, memory, accuracy, inference speed,
 skill effectiveness, and compares: Full FT vs LoRA vs QLoRA vs Sparse vs ASFT.
 """
+
 from __future__ import annotations
 
 import json
@@ -56,10 +57,12 @@ class BenchmarkRunner:
         self._output_dir.mkdir(parents=True, exist_ok=True)
         self._records: list[BenchmarkRecord] = []
 
-    def time_inference(self, model, tokenizer, prompt: str, device: str = "cpu",
-                       n_runs: int = 10) -> float:
+    def time_inference(
+        self, model, tokenizer, prompt: str, device: str = "cpu", n_runs: int = 10
+    ) -> float:
         """Returns average inference time in milliseconds."""
         import torch
+
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
         times = []
         with torch.no_grad():
@@ -73,23 +76,27 @@ class BenchmarkRunner:
         """Measure current peak GPU memory usage in MB."""
         try:
             import torch
+
             if torch.cuda.is_available():
                 return torch.cuda.max_memory_allocated() / (1024 * 1024)
         except Exception:
             pass
         try:
             import psutil
+
             return psutil.Process().memory_info().rss / (1024 * 1024)
         except Exception:
             return 0.0
 
-    def evaluate_accuracy(self, model, tokenizer, eval_samples: list[dict],
-                           device: str = "cpu") -> tuple:
+    def evaluate_accuracy(
+        self, model, tokenizer, eval_samples: list[dict], device: str = "cpu"
+    ) -> tuple:
         """
         Evaluate model on a set of (prompt, expected) pairs.
         Returns (accuracy, hallucination_rate, reliability).
         """
         from asft.accuracy.confidence_scorer import ConfidenceScorer
+
         scorer = ConfidenceScorer()
 
         correct = 0
@@ -97,20 +104,23 @@ class BenchmarkRunner:
         total = len(eval_samples)
 
         import torch
+
         for sample in eval_samples:
             prompt = sample["prompt"]
             expected = sample.get("expected", "")
 
             try:
-                inputs = tokenizer(prompt, return_tensors="pt", truncation=True,
-                                   max_length=512).to(device)
+                inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(
+                    device
+                )
                 with torch.no_grad():
                     outputs = model.generate(**inputs, max_new_tokens=200, do_sample=False)
                 output_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
                 # Simple accuracy: check if expected key terms appear in output
-                if expected and all(kw.lower() in output_text.lower()
-                                    for kw in expected.split()[:3]):
+                if expected and all(
+                    kw.lower() in output_text.lower() for kw in expected.split()[:3]
+                ):
                     correct += 1
 
                 # Confidence-based hallucination estimate

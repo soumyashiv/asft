@@ -2,6 +2,7 @@
 Benchmark Reporter — Generates JSON + HTML reports and comparison summaries.
 Compares Full FT vs LoRA vs QLoRA vs Sparse vs ASFT across all metrics.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,19 +20,26 @@ class BenchmarkReporter:
         self._output_dir = Path(output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_html_report(self, records: list[dict[str, Any]], title: str = "ASFT Benchmark") -> str:
+    def generate_html_report(
+        self, records: list[dict[str, Any]], title: str = "ASFT Benchmark"
+    ) -> str:
         """Generate a full HTML comparison report."""
         methods = sorted(set(r["method"] for r in records))
-        metrics = ["accuracy", "training_time_seconds", "inference_time_ms",
-                   "peak_memory_mb", "hallucination_rate", "param_efficiency"]
+        metrics = [
+            "accuracy",
+            "training_time_seconds",
+            "inference_time_ms",
+            "peak_memory_mb",
+            "hallucination_rate",
+            "param_efficiency",
+        ]
 
         # Compute averages per method
         stats: dict[str, dict[str, float]] = {}
         for method in methods:
             method_records = [r for r in records if r["method"] == method]
             stats[method] = {
-                m: sum(r.get(m, 0) for r in method_records) / len(method_records)
-                for m in metrics
+                m: sum(r.get(m, 0) for r in method_records) / len(method_records) for m in metrics
             }
 
         # Build HTML
@@ -119,7 +127,8 @@ class BenchmarkReporter:
         if not baseline_recs or not target_recs:
             return {"error": f"Missing data for {baseline} or {target}"}
 
-        def avg(recs, key): return sum(r.get(key, 0) for r in recs) / len(recs)
+        def avg(recs, key):
+            return sum(r.get(key, 0) for r in recs) / len(recs)
 
         metrics = ["accuracy", "training_time_seconds", "inference_time_ms", "peak_memory_mb"]
         improvements = {}

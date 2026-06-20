@@ -21,6 +21,7 @@ NEW:
     - /api/v1/estimate endpoint — returns cost/time estimate without training
     - Worker pool lifecycle managed by FastAPI lifespan
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -72,6 +73,7 @@ profiler = HardwareProfiler()
 # Worker functions — must be top-level picklable functions for ProcessPool
 # ---------------------------------------------------------------------------
 
+
 def _training_worker(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """
     Runs in an isolated worker process.
@@ -113,17 +115,21 @@ def _compression_worker(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
 # Background coroutines — submit to process pool, then update job store
 # ---------------------------------------------------------------------------
 
+
 async def run_training_job(job_id: str, payload: dict[str, Any]) -> None:
     """
     Submit training to the Celery worker queue.
     """
     await job_store.update_status(job_id, "queued")
     logger.info("Training job %s submitted to Celery queue", job_id)
-    
+
     from asft.workers.tasks import run_training_job as celery_training_task
+
     try:
         # Dispatch to celery
-        celery_training_task.apply_async(kwargs={"config_dict": payload, "job_id": job_id}, task_id=job_id)
+        celery_training_task.apply_async(
+            kwargs={"config_dict": payload, "job_id": job_id}, task_id=job_id
+        )
     except Exception as e:
         logger.exception("Failed to dispatch job %s to Celery", job_id)
         await job_store.update_status(job_id, "failed", error=str(e))
@@ -133,10 +139,13 @@ async def run_compression_job(job_id: str, payload: dict[str, Any]) -> None:
     """Submit dataset compression to the Celery queue."""
     await job_store.update_status(job_id, "queued")
     logger.info("Compression job %s submitted to Celery queue", job_id)
-    
+
     from asft.workers.tasks import run_compression_job as celery_compression_task
+
     try:
-        celery_compression_task.apply_async(kwargs={"payload": payload, "job_id": job_id}, task_id=job_id)
+        celery_compression_task.apply_async(
+            kwargs={"payload": payload, "job_id": job_id}, task_id=job_id
+        )
     except Exception as e:
         logger.exception("Failed to dispatch compression job %s to Celery", job_id)
         await job_store.update_status(job_id, "failed", error=str(e))
@@ -145,6 +154,7 @@ async def run_compression_job(job_id: str, payload: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -157,9 +167,10 @@ async def lifespan(app: FastAPI):
     # Profile hardware
     profiler.profile()
     logger.info("Hardware profile: %s", profiler)
-    
+
     # Start Redis listener for WebSockets
     from asft.api.websockets import redis_listener
+
     listener_task = asyncio.create_task(redis_listener())
 
     yield
@@ -189,10 +200,13 @@ app = FastAPI(
 # Exception Handlers
 # ---------------------------------------------------------------------------
 
+
 @app.exception_handler(ASFTError)
 async def asft_error_handler(request: Request, exc: ASFTError):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-    logger.warning("API Error | request_id=%s type=%s message=%s", request_id, exc.code, exc.message)
+    logger.warning(
+        "API Error | request_id=%s type=%s message=%s", request_id, exc.code, exc.message
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
@@ -228,14 +242,14 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,   # FIX F6: from env, not hardcoded ["*"]
+    allow_origins=settings.allowed_origins,  # FIX F6: from env, not hardcoded ["*"]
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 app.add_middleware(RequestLoggingMiddleware)
 
-from asft.api.websockets import router as websocket_router
+from asft.api.websockets import router as websocket_router  # noqa: E402
 
 app.include_router(websocket_router)
 
@@ -243,22 +257,29 @@ app.include_router(websocket_router)
 # Endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 async def health_check():
     """Public health check. No authentication required."""
     import time
 
     from asft import __version__
+
     return HealthResponse(
         version=__version__,
         uptime_seconds=round(time.time() - app.state.start_time, 1),
     )
 
 
-from fastapi import Depends
+from fastapi import Depends  # noqa: E402
 
 
-@app.post("/api/v1/estimate", response_model=EstimateResponse, tags=["optimizer"], dependencies=[Depends(require_researcher)])
+@app.post(
+    "/api/v1/estimate",
+    response_model=EstimateResponse,
+    tags=["optimizer"],
+    dependencies=[Depends(require_researcher)],
+)
 async def estimate_training_cost(request: EstimateRequest):
     """
     Estimate training cost, time, and resource requirements BEFORE committing.
@@ -266,6 +287,7 @@ async def estimate_training_cost(request: EstimateRequest):
     Returns a recommendation: train | use_qlora | retrieve | use_skill.
     """
     from asft.optimizer.cost_estimator import CostEstimator
+
     estimator = CostEstimator()
     estimate = estimator.estimate(
         model_name=request.model_name,
@@ -283,13 +305,19 @@ async def estimate_training_cost(request: EstimateRequest):
     )
 
 
-@app.post("/api/v1/optimize", response_model=OptimizeResponse, tags=["optimizer"], dependencies=[Depends(require_researcher)])
+@app.post(
+    "/api/v1/optimize",
+    response_model=OptimizeResponse,
+    tags=["optimizer"],
+    dependencies=[Depends(require_researcher)],
+)
 async def auto_optimize(request: OptimizeRequest):
     """
     AutoOptimizer: determine the cheapest path to solving a task.
     Checks memory → retrieval → skills → LoRA → QLoRA before recommending training.
     """
     from asft.optimizer.auto_optimizer import AutoOptimizer
+
     optimizer = AutoOptimizer(registry=registry)
     decision = optimizer.decide(
         task=request.task,
@@ -305,8 +333,16 @@ async def auto_optimize(request: OptimizeRequest):
     )
 
 
-@app.post("/api/v1/train", response_model=TrainResponse, tags=["training"], dependencies=[Depends(require_agent)])
-async def queue_training(request: TrainRequest):
+from fastapi import BackgroundTasks  # noqa: E402
+
+
+@app.post(
+    "/api/v1/train",
+    response_model=TrainResponse,
+    tags=["training"],
+    dependencies=[Depends(require_agent)],
+)
+async def queue_training(request: TrainRequest, background_tasks: BackgroundTasks):
     """
     Queue a fine-tuning job. The job runs in a worker process pool —
     the API response is immediate; poll /api/v1/jobs/{job_id} for status.
@@ -321,24 +357,38 @@ async def queue_training(request: TrainRequest):
         )
 
     payload = request.model_dump()
-    job = await job_store.create(job_type="training", payload=payload)
+    job = await job_store.create(
+        job_id=str(uuid.uuid4())[:12], job_type="training", payload=payload
+    )
 
     # Submit to process pool asynchronously (does NOT block the event loop)
-    background_tasks.add_task(run_training_job, job.job_id, payload)
+    background_tasks.add_task(run_training_job, job.job_id, payload)  # noqa: F821
 
     return TrainResponse(job_id=job.job_id, status="queued")
 
 
-@app.post("/api/v1/dataset/compress", response_model=CompressResponse, tags=["dataset"], dependencies=[Depends(require_agent)])
-async def queue_compression(request: CompressRequest):
+@app.post(
+    "/api/v1/dataset/compress",
+    response_model=CompressResponse,
+    tags=["dataset"],
+    dependencies=[Depends(require_agent)],
+)
+async def queue_compression(request: CompressRequest, background_tasks: BackgroundTasks):
     """Queue a dataset compression job."""
     payload = request.model_dump()
-    job = await job_store.create(job_type="compression", payload=payload)
-    background_tasks.add_task(run_compression_job, job.job_id, payload)
+    job = await job_store.create(
+        job_id=str(uuid.uuid4())[:12], job_type="compression", payload=payload
+    )
+    background_tasks.add_task(run_compression_job, job.job_id, payload)  # noqa: F821
     return CompressResponse(job_id=job.job_id, status="queued")
 
 
-@app.get("/api/v1/jobs/{job_id}", response_model=JobStatusResponse, tags=["jobs"], dependencies=[Depends(require_readonly)])
+@app.get(
+    "/api/v1/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    tags=["jobs"],
+    dependencies=[Depends(require_readonly)],
+)
 async def get_job_status(job_id: str):
     """Retrieve the status and results of a background job."""
     job = await job_store.get(job_id)
@@ -359,6 +409,6 @@ async def list_jobs(
 
 
 # Initialize start time
-import time
+import time  # noqa: E402
 
 app.state.start_time = time.time()

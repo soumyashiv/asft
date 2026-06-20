@@ -2,6 +2,7 @@
 Multi-Pass Reasoner — Generates K candidate solutions, scores each,
 and returns the highest-confidence answer. Implements self-consistency reasoning.
 """
+
 from __future__ import annotations
 
 import logging
@@ -78,14 +79,18 @@ class MultiPassReasoner:
         """Generate K outputs, score all, return highest-confidence."""
         outputs = generate_fn(self._k)
         if not outputs:
-            return ReasoningResult(best_output="", best_score=ConfidenceScore(0, 0, 0, 0, ["no_output"]))
+            return ReasoningResult(
+                best_output="", best_score=ConfidenceScore(0, 0, 0, 0, ["no_output"])
+            )
 
         scores = self._scorer.batch_score(outputs, task_type)
         best_idx = max(range(len(scores)), key=lambda i: scores[i].composite)
 
         logger.debug(
             "BestOfK[%d]: scores=%s best=%.3f",
-            self._k, [round(s.composite, 3) for s in scores], scores[best_idx].composite
+            self._k,
+            [round(s.composite, 3) for s in scores],
+            scores[best_idx].composite,
         )
 
         return ReasoningResult(
@@ -101,7 +106,9 @@ class MultiPassReasoner:
         """Generate K outputs, find the one with most agreement."""
         outputs = generate_fn(self._k)
         if not outputs:
-            return ReasoningResult(best_output="", best_score=ConfidenceScore(0, 0, 0, 0, ["no_output"]))
+            return ReasoningResult(
+                best_output="", best_score=ConfidenceScore(0, 0, 0, 0, ["no_output"])
+            )
 
         scores = self._scorer.batch_score(outputs, task_type)
 
@@ -129,18 +136,26 @@ class MultiPassReasoner:
         # First pass
         outputs = generate_fn(1)
         if not outputs:
-            return ReasoningResult(best_output="", best_score=ConfidenceScore(0, 0, 0, 0, ["no_output"]))
+            return ReasoningResult(
+                best_output="", best_score=ConfidenceScore(0, 0, 0, 0, ["no_output"])
+            )
 
         score = self._scorer.score(outputs[0], task_type)
         if score.composite >= self._min_confidence:
             logger.debug("Escalating: single pass sufficient (score=%.3f)", score.composite)
             return ReasoningResult(
-                best_output=outputs[0], best_score=score,
-                all_outputs=outputs, all_scores=[score], passes_used=1, task_type=task_type
+                best_output=outputs[0],
+                best_score=score,
+                all_outputs=outputs,
+                all_scores=[score],
+                passes_used=1,
+                task_type=task_type,
             )
 
         # Escalate: generate K-1 more
-        logger.debug("Escalating: low confidence (%.3f) — generating %d more", score.composite, self._k - 1)
+        logger.debug(
+            "Escalating: low confidence (%.3f) — generating %d more", score.composite, self._k - 1
+        )
         extra = generate_fn(self._k - 1)
         all_outputs = outputs + extra
         all_scores = self._scorer.batch_score(all_outputs, task_type)
@@ -157,6 +172,7 @@ class MultiPassReasoner:
 
     def _find_consensus(self, outputs: list[str]) -> int:
         """Find the output with highest token overlap to all others."""
+
         def token_overlap(a: str, b: str) -> float:
             ta, tb = set(a.lower().split()), set(b.lower().split())
             return len(ta & tb) / max(1, len(ta | tb))

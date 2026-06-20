@@ -2,6 +2,7 @@
 Working Memory — Fast in-session scratch space.
 Holds current task context, intermediate results, and active state.
 """
+
 from __future__ import annotations
 
 import time
@@ -36,8 +37,9 @@ class WorkingMemory:
         self._history: deque[MemoryItem] = deque(maxlen=history_size)
         self._max_items = max_items
 
-    def set(self, key: str, value: Any, tags: list[str] | None = None,
-            ttl: float | None = None) -> None:
+    def set(
+        self, key: str, value: Any, tags: list[str] | None = None, ttl: float | None = None
+    ) -> None:
         """Store or overwrite a value."""
         item = MemoryItem(key=key, value=value, tags=tags or [], ttl=ttl)
         if len(self._store) >= self._max_items and key not in self._store:

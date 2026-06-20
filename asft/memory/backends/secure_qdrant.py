@@ -8,11 +8,13 @@ from asft.core.interfaces import IMemoryStore
 
 logger = logging.getLogger(__name__)
 
+
 class QdrantConfig(BaseModel):
     url: str
     api_key: str | None = None
     tls_cert_path: str | None = None
     tls_key_path: str | None = None
+
 
 class SecureQdrantAdapter(IMemoryStore):
     """
@@ -20,13 +22,14 @@ class SecureQdrantAdapter(IMemoryStore):
     Supports TLS, mTLS, and API keys. Integration with Kubernetes/Vault
     is achieved via environment variables injected into the Pods.
     """
+
     def __init__(self, config: QdrantConfig | None = None):
         if config is None:
             config = QdrantConfig(
                 url=os.getenv("QDRANT_URL", "http://localhost:6333"),
                 api_key=os.getenv("QDRANT_API_KEY"),
                 tls_cert_path=os.getenv("QDRANT_TLS_CERT_PATH"),
-                tls_key_path=os.getenv("QDRANT_TLS_KEY_PATH")
+                tls_key_path=os.getenv("QDRANT_TLS_KEY_PATH"),
             )
         self.config = config
         self._client = None
@@ -38,27 +41,27 @@ class SecureQdrantAdapter(IMemoryStore):
     def _initialize_client(self):
         try:
             from qdrant_client import QdrantClient
-            
+
             kwargs = {
                 "url": self.config.url,
             }
             if self.config.api_key:
                 kwargs["api_key"] = self.config.api_key
-            
+
             # Setup mTLS if certs are provided
             if self.config.tls_cert_path and self.config.tls_key_path:
-                if os.path.exists(self.config.tls_cert_path) and os.path.exists(self.config.tls_key_path):
-                    import httpx
-                    verify = True # By default verify TLS
-                    cert = (self.config.tls_cert_path, self.config.tls_key_path)
-                    
+                if os.path.exists(self.config.tls_cert_path) and os.path.exists(
+                    self.config.tls_key_path
+                ):
+                    import httpx  # noqa: F401
+
                     # Qdrant client allows passing custom httpx client or kwargs for grpc/http
                     kwargs["https"] = True
                     kwargs["timeout"] = 10.0
-                    
+
                     # For REST requests (qdrant_client HTTP backend)
                     kwargs["metadata"] = {"tls": "mtls"}
-                    
+
             self._client = QdrantClient(**kwargs)
             self._is_healthy = self.health_check()
             if not self._is_healthy:
@@ -74,14 +77,14 @@ class SecureQdrantAdapter(IMemoryStore):
         """
         if not self._client:
             return False
-            
+
         try:
             # For HTTP endpoint testing TLS directly
             if self.config.url.startswith("https://"):
                 cert = None
                 if self.config.tls_cert_path and self.config.tls_key_path:
                     cert = (self.config.tls_cert_path, self.config.tls_key_path)
-                
+
                 with httpx.Client(cert=cert, verify=True, timeout=5.0) as http_client:
                     headers = {}
                     if self.config.api_key:
@@ -123,7 +126,9 @@ class SecureQdrantAdapter(IMemoryStore):
             raise ConnectionError("Cannot perform operation: SecureQdrantAdapter is unhealthy.")
         return []
 
-    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None) -> list[str]:
+    async def batch_insert(
+        self, contents: list[str], metadatas: list[dict] | None = None
+    ) -> list[str]:
         if not self._is_healthy:
             raise ConnectionError("Cannot perform operation: SecureQdrantAdapter is unhealthy.")
         return []

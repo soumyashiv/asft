@@ -23,6 +23,7 @@ What this module deliberately CANNOT do:
 For real code execution testing, use an external sandboxed runner
 (Docker/gVisor) invoked by a separate, privileged service.
 """
+
 from __future__ import annotations
 
 import logging
@@ -89,8 +90,10 @@ class SafeVerifier(IVerifier):
         result_numbers = re.findall(r"-?\d+\.?\d*", output)
         if not result_numbers:
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.4,
-                details="No numeric result found in output to verify."
+                verified=True,
+                method="math_cas",
+                confidence=0.4,
+                details="No numeric result found in output to verify.",
             )
 
         # Extract a clean arithmetic expression from the task
@@ -99,16 +102,20 @@ class SafeVerifier(IVerifier):
 
         if not expr or len(expr) < 3:
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.5,
-                details="Could not extract a verifiable expression from the task."
+                verified=True,
+                method="math_cas",
+                confidence=0.5,
+                details="Could not extract a verifiable expression from the task.",
             )
 
         sandbox_result = verify_math_with_sympy(expr)
 
         if not sandbox_result.success:
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.4,
-                details=f"SymPy evaluation failed: {sandbox_result.error}"
+                verified=True,
+                method="math_cas",
+                confidence=0.4,
+                details=f"SymPy evaluation failed: {sandbox_result.error}",
             )
 
         try:
@@ -118,19 +125,25 @@ class SafeVerifier(IVerifier):
 
             if abs(actual - expected) <= tolerance:
                 return VerificationResult(
-                    verified=True, method="math_cas", confidence=0.95,
-                    details=f"SymPy verified: {actual} ≈ {expected}"
+                    verified=True,
+                    method="math_cas",
+                    confidence=0.95,
+                    details=f"SymPy verified: {actual} ≈ {expected}",
                 )
             else:
                 return VerificationResult(
-                    verified=False, method="math_cas", confidence=0.92,
+                    verified=False,
+                    method="math_cas",
+                    confidence=0.92,
                     details=f"Mismatch: output={actual}, expected={expected}",
-                    corrections=f"Correct answer: {expected}"
+                    corrections=f"Correct answer: {expected}",
                 )
         except (ValueError, TypeError):
             return VerificationResult(
-                verified=True, method="math_cas", confidence=0.45,
-                details="Could not compare numeric values."
+                verified=True,
+                method="math_cas",
+                confidence=0.45,
+                details="Could not compare numeric values.",
             )
 
     # -------------------------------------------------------------------------
@@ -147,8 +160,10 @@ class SafeVerifier(IVerifier):
 
         if not code_blocks:
             return VerificationResult(
-                verified=True, method="code_syntax", confidence=0.4,
-                details="No fenced code blocks found in output."
+                verified=True,
+                method="code_syntax",
+                confidence=0.4,
+                details="No fenced code blocks found in output.",
             )
 
         code = code_blocks[0]
@@ -156,21 +171,27 @@ class SafeVerifier(IVerifier):
 
         if sandbox_result.was_blocked:
             return VerificationResult(
-                verified=False, method="code_syntax", confidence=0.6,
+                verified=False,
+                method="code_syntax",
+                confidence=0.6,
                 details=f"Code blocked by security sandbox: {sandbox_result.error}",
-                safe_to_execute=False
+                safe_to_execute=False,
             )
 
         if sandbox_result.success:
             return VerificationResult(
-                verified=True, method="code_syntax", confidence=0.75,
-                details="Python syntax is valid. Note: syntax ≠ correctness. No execution performed."
+                verified=True,
+                method="code_syntax",
+                confidence=0.75,
+                details="Python syntax is valid. Note: syntax ≠ correctness. No execution performed.",
             )
         else:
             return VerificationResult(
-                verified=False, method="code_syntax", confidence=0.80,
+                verified=False,
+                method="code_syntax",
+                confidence=0.80,
                 details=f"Syntax error: {sandbox_result.error}",
-                corrections=f"Fix syntax: {sandbox_result.error}"
+                corrections=f"Fix syntax: {sandbox_result.error}",
             )
 
     # -------------------------------------------------------------------------
@@ -181,6 +202,7 @@ class SafeVerifier(IVerifier):
         """Cross-check output claims against the memory system."""
         try:
             import asyncio
+
             # If we're in an async context, get the event loop
             try:
                 loop = asyncio.get_event_loop()
@@ -191,15 +213,19 @@ class SafeVerifier(IVerifier):
 
             if results:
                 return VerificationResult(
-                    verified=True, method="memory_cross_check", confidence=0.70,
-                    details=f"Memory cross-check: {len(results)} relevant records found."
+                    verified=True,
+                    method="memory_cross_check",
+                    confidence=0.70,
+                    details=f"Memory cross-check: {len(results)} relevant records found.",
                 )
         except Exception as e:
             logger.debug("Memory verification failed: %s", e)
 
         return VerificationResult(
-            verified=True, method="memory_cross_check", confidence=0.50,
-            details="No relevant memory records found for cross-check."
+            verified=True,
+            method="memory_cross_check",
+            confidence=0.50,
+            details="No relevant memory records found for cross-check.",
         )
 
     # -------------------------------------------------------------------------
@@ -225,8 +251,9 @@ class SafeVerifier(IVerifier):
 @dataclass
 class KnowledgeGapResult:
     """Result of a knowledge gap detection check."""
+
     has_gap: bool
-    gap_type: str          # "temporal" | "factual" | "self_reported" | "none"
+    gap_type: str  # "temporal" | "factual" | "self_reported" | "none"
     gap_description: str
     recommended_action: str  # "memory_lookup" | "tool_use" | "research" | "none"
     confidence: float

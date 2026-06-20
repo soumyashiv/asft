@@ -35,6 +35,7 @@ LIMITATIONS (honest):
     - For novel domains with no existing data, this optimizer may under-estimate
       the value of fine-tuning.
 """
+
 from __future__ import annotations
 
 import logging
@@ -60,15 +61,15 @@ ACTION_REJECT = "reject"  # budget exceeded or dataset too small
 # Expected accuracy per tier (median empirical, task-type-agnostic)
 # Source: ASFT benchmark suite + literature review
 _TIER_ACCURACY: dict[str, float] = {
-    ACTION_USE_WORKING_MEMORY: 0.95,   # If it's in memory, recall is near-perfect
+    ACTION_USE_WORKING_MEMORY: 0.95,  # If it's in memory, recall is near-perfect
     ACTION_USE_EPISODIC_MEMORY: 0.80,
     ACTION_USE_SEMANTIC_MEMORY: 0.78,
     ACTION_USE_SKILL: 0.75,
-    ACTION_USE_RAG: 0.72,              # Lewis et al. 2020: ~72% on NQ, TriviaQA
-    ACTION_DISTILL: 0.80,              # DistilBERT: 97% of BERT on GLUE = ~0.80 abs
-    ACTION_USE_LORA: 0.85,             # Hu et al. 2021: near-FT accuracy
-    ACTION_USE_QLORA: 0.84,            # Dettmers et al. 2023: <2% drop vs LoRA
-    ACTION_SPARSE_TUNE: 0.80,          # Selective layer training: variable
+    ACTION_USE_RAG: 0.72,  # Lewis et al. 2020: ~72% on NQ, TriviaQA
+    ACTION_DISTILL: 0.80,  # DistilBERT: 97% of BERT on GLUE = ~0.80 abs
+    ACTION_USE_LORA: 0.85,  # Hu et al. 2021: near-FT accuracy
+    ACTION_USE_QLORA: 0.84,  # Dettmers et al. 2023: <2% drop vs LoRA
+    ACTION_SPARSE_TUNE: 0.80,  # Selective layer training: variable
     ACTION_FULL_FINETUNE: 0.90,
 }
 
@@ -79,9 +80,9 @@ _TIER_COST_PER_K: dict[str, float] = {
     ACTION_USE_SEMANTIC_MEMORY: 0.001,
     ACTION_USE_SKILL: 0.01,
     ACTION_USE_RAG: 0.05,
-    ACTION_DISTILL: 200.0,    # One-time training cost (amortized)
-    ACTION_USE_LORA: 50.0,    # One-time LoRA training
-    ACTION_USE_QLORA: 25.0,   # Cheaper than LoRA due to 4-bit
+    ACTION_DISTILL: 200.0,  # One-time training cost (amortized)
+    ACTION_USE_LORA: 50.0,  # One-time LoRA training
+    ACTION_USE_QLORA: 25.0,  # Cheaper than LoRA due to 4-bit
     ACTION_SPARSE_TUNE: 75.0,
     ACTION_FULL_FINETUNE: 500.0,
 }
@@ -90,6 +91,7 @@ _TIER_COST_PER_K: dict[str, float] = {
 @dataclass
 class OptimizerDecision:
     """The AutoOptimizer's recommendation."""
+
     action: str
     reasoning: str
     estimated_cost_usd: float
@@ -115,6 +117,7 @@ class AutoOptimizer:
         self._registry = registry
         if cost_estimator is None:
             from asft.optimizer.cost_estimator import CostEstimator
+
             cost_estimator = CostEstimator()
         self._estimator = cost_estimator
 
@@ -145,7 +148,9 @@ class AutoOptimizer:
         """
         logger.info(
             "AutoOptimizer.decide | domain=%s target_acc=%.2f budget=%s",
-            domain, target_accuracy, f"${budget_usd:.2f}" if budget_usd else "unlimited"
+            domain,
+            target_accuracy,
+            f"${budget_usd:.2f}" if budget_usd else "unlimited",
         )
 
         warnings: list[str] = []
@@ -175,12 +180,14 @@ class AutoOptimizer:
                 )
 
             if memory_coverage > 0.60:
-                alternatives.append({
-                    "action": ACTION_USE_EPISODIC_MEMORY,
-                    "estimated_accuracy": _TIER_ACCURACY[ACTION_USE_EPISODIC_MEMORY],
-                    "cost_usd": 0.001,
-                    "note": "Partial memory coverage — augment with RAG for higher accuracy"
-                })
+                alternatives.append(
+                    {
+                        "action": ACTION_USE_EPISODIC_MEMORY,
+                        "estimated_accuracy": _TIER_ACCURACY[ACTION_USE_EPISODIC_MEMORY],
+                        "cost_usd": 0.001,
+                        "note": "Partial memory coverage — augment with RAG for higher accuracy",
+                    }
+                )
 
         # ----------------------------------------------------------------
         # Tier 4: Skill pack
@@ -204,12 +211,14 @@ class AutoOptimizer:
                     warnings=warnings,
                 )
             else:
-                alternatives.append({
-                    "action": ACTION_USE_SKILL,
-                    "estimated_accuracy": _TIER_ACCURACY[ACTION_USE_SKILL],
-                    "cost_usd": 0.0,
-                    "note": f"Skill pack accuracy {_TIER_ACCURACY[ACTION_USE_SKILL]:.0%} < target {target_accuracy:.0%}"
-                })
+                alternatives.append(
+                    {
+                        "action": ACTION_USE_SKILL,
+                        "estimated_accuracy": _TIER_ACCURACY[ACTION_USE_SKILL],
+                        "cost_usd": 0.0,
+                        "note": f"Skill pack accuracy {_TIER_ACCURACY[ACTION_USE_SKILL]:.0%} < target {target_accuracy:.0%}",
+                    }
+                )
 
         # ----------------------------------------------------------------
         # Tier 5: RAG
@@ -232,12 +241,14 @@ class AutoOptimizer:
                 warnings=warnings,
             )
         else:
-            alternatives.append({
-                "action": ACTION_USE_RAG,
-                "estimated_accuracy": rag_accuracy,
-                "cost_usd": 0.05,
-                "note": "RAG insufficient for target accuracy — consider augmenting with fine-tuning"
-            })
+            alternatives.append(
+                {
+                    "action": ACTION_USE_RAG,
+                    "estimated_accuracy": rag_accuracy,
+                    "cost_usd": 0.05,
+                    "note": "RAG insufficient for target accuracy — consider augmenting with fine-tuning",
+                }
+            )
 
         # ----------------------------------------------------------------
         # Training gate: refuse if not allowed
@@ -283,12 +294,14 @@ class AutoOptimizer:
 
             # Budget check
             if budget_usd is not None and cost > budget_usd:
-                alternatives.append({
-                    "action": action,
-                    "estimated_accuracy": expected_acc,
-                    "cost_usd": cost,
-                    "note": f"Exceeds budget (${cost:.2f} > ${budget_usd:.2f})"
-                })
+                alternatives.append(
+                    {
+                        "action": action,
+                        "estimated_accuracy": expected_acc,
+                        "cost_usd": cost,
+                        "note": f"Exceeds budget (${cost:.2f} > ${budget_usd:.2f})",
+                    }
+                )
                 warnings.append(f"{action} exceeds budget: ${cost:.2f}")
                 continue
 
@@ -307,12 +320,14 @@ class AutoOptimizer:
                     warnings=warnings + estimate.warnings,
                 )
             else:
-                alternatives.append({
-                    "action": action,
-                    "estimated_accuracy": expected_acc,
-                    "cost_usd": cost,
-                    "note": f"Accuracy {expected_acc:.0%} < target {target_accuracy:.0%}"
-                })
+                alternatives.append(
+                    {
+                        "action": action,
+                        "estimated_accuracy": expected_acc,
+                        "cost_usd": cost,
+                        "note": f"Accuracy {expected_acc:.0%} < target {target_accuracy:.0%}",
+                    }
+                )
 
         # Nothing meets the target
         return OptimizerDecision(
@@ -345,7 +360,9 @@ class AutoOptimizer:
                 results = memory.search(task, top_k=3)
                 if results:
                     # Use the top similarity score as coverage
-                    top_score = results[0].get("similarity", 0.5) if isinstance(results[0], dict) else 0.5
+                    top_score = (
+                        results[0].get("similarity", 0.5) if isinstance(results[0], dict) else 0.5
+                    )
                     return float(top_score)
         except Exception as e:
             logger.debug("Memory coverage check failed: %s", e)
@@ -374,13 +391,20 @@ class AutoOptimizer:
 
     @staticmethod
     def _make_decision(
-        action: str, reasoning: str, cost: float, accuracy: float,
-        target: float, budget: float | None,
-        alternatives: list, warnings: list,
+        action: str,
+        reasoning: str,
+        cost: float,
+        accuracy: float,
+        target: float,
+        budget: float | None,
+        alternatives: list,
+        warnings: list,
     ) -> OptimizerDecision:
         """Create a decision, checking budget constraint."""
         if budget is not None and cost > budget and cost > 0.01:
-            warnings.append(f"Recommended action ({action}) costs ${cost:.2f} which exceeds budget ${budget:.2f}")
+            warnings.append(
+                f"Recommended action ({action}) costs ${cost:.2f} which exceeds budget ${budget:.2f}"
+            )
         return OptimizerDecision(
             action=action,
             reasoning=reasoning,

@@ -1,4 +1,5 @@
 """Research Skill Pack — Information synthesis, analysis, and literature review."""
+
 from __future__ import annotations
 
 import time
@@ -41,7 +42,9 @@ class ResearchSkillPack(SkillPack):
         has_structure = any(h in sample_output for h in ["##", "**", "1.", "-"])
         hedge_words = ["however", "additionally", "furthermore", "in contrast", "notably"]
         has_nuance = sum(1 for w in hedge_words if w in sample_output.lower())
-        return min(1.0, length_score * 0.4 + (0.3 if has_structure else 0) + min(0.3, has_nuance * 0.1))
+        return min(
+            1.0, length_score * 0.4 + (0.3 if has_structure else 0) + min(0.3, has_nuance * 0.1)
+        )
 
     def _run_model(self, prompt, model, tokenizer, kwargs):
         if model is None or tokenizer is None:

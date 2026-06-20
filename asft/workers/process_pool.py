@@ -24,6 +24,7 @@ ALTERNATIVE (not implemented here):
     For distributed, multi-node deployments: replace with Celery + Redis.
     The IJobStore abstraction means the API layer is unaffected by the swap.
 """
+
 from __future__ import annotations
 
 import asyncio

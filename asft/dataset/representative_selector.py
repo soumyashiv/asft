@@ -2,6 +2,7 @@
 Representative Selector — Selects the most informative samples from each cluster.
 Maximizes coverage while minimizing dataset size.
 """
+
 from __future__ import annotations
 
 import logging
@@ -74,14 +75,16 @@ class RepresentativeSelector:
         }
         logger.info(
             "Representative selection: %d → %d (%.1f%% reduction)",
-            stats["original_count"], stats["selected_count"], stats["reduction_ratio"] * 100,
+            stats["original_count"],
+            stats["selected_count"],
+            stats["reduction_ratio"] * 100,  # type: ignore
         )
         return selected, stats
 
     def _centroid_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> list[int]:
         centroid = cluster_emb.mean(axis=0)
         distances = np.linalg.norm(cluster_emb - centroid, axis=1)
-        nearest = np.argsort(distances)[:self._samples_per_cluster]
+        nearest = np.argsort(distances)[: self._samples_per_cluster]
         return cluster_idx[nearest].tolist()
 
     def _diversity_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> list[int]:
@@ -103,5 +106,5 @@ class RepresentativeSelector:
         k = self._samples_per_cluster
         half = max(1, k // 2)
         centroid_sel = self._centroid_select(cluster_emb, cluster_idx)[:half]
-        diversity_sel = self._diversity_select(cluster_emb, cluster_idx)[:k - half]
+        diversity_sel = self._diversity_select(cluster_emb, cluster_idx)[: k - half]
         return list(set(centroid_sel + diversity_sel))

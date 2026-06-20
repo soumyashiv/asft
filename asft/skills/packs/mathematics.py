@@ -1,4 +1,5 @@
 """Mathematics Skill Pack — Computation, proofs, and symbolic reasoning."""
+
 from __future__ import annotations
 
 import re
@@ -10,7 +11,9 @@ from asft.skills.skill_pack import SkillPack, SkillResult
 class MathematicsSkillPack(SkillPack):
     def __init__(self, pack_dir=None):
         super().__init__("mathematics", pack_dir)
-        self.meta.description = "Mathematical computation, symbolic reasoning, proofs, and statistics"
+        self.meta.description = (
+            "Mathematical computation, symbolic reasoning, proofs, and statistics"
+        )
         self.meta.domain = "mathematics"
         self.meta.tags = ["math", "calculus", "algebra", "statistics", "proof", "computation"]
 
@@ -31,8 +34,10 @@ class MathematicsSkillPack(SkillPack):
             duration = time.time() - start
             self.record_usage(success=True, score=1.0)
             return SkillResult(
-                skill_name=self.meta.name, output=str(computed),
-                confidence=1.0, duration_seconds=round(duration, 4),
+                skill_name=self.meta.name,
+                output=str(computed),
+                confidence=1.0,
+                duration_seconds=round(duration, 4),
                 metadata={"method": "direct_computation"},
             )
 
@@ -42,26 +47,33 @@ class MathematicsSkillPack(SkillPack):
         confidence = self._estimate_confidence(output)
         self.record_usage(success=True, score=confidence)
         return SkillResult(
-            skill_name=self.meta.name, output=output,
-            confidence=confidence, duration_seconds=round(duration, 3),
+            skill_name=self.meta.name,
+            output=output,
+            confidence=confidence,
+            duration_seconds=round(duration, 3),
             metadata={"method": "model_inference"},
         )
 
     def evaluate(self, sample_input: str, sample_output: str) -> float:
-        has_numbers = bool(re.search(r'\d', sample_output))
-        has_steps = any(w in sample_output.lower() for w in ["therefore", "step", "=", "thus", "hence"])
+        has_numbers = bool(re.search(r"\d", sample_output))
+        has_steps = any(
+            w in sample_output.lower() for w in ["therefore", "step", "=", "thus", "hence"]
+        )
         has_answer = any(w in sample_output.lower() for w in ["answer", "result", "=", "solution"])
-        return min(1.0, (0.3 if has_numbers else 0) + (0.4 if has_steps else 0) + (0.3 if has_answer else 0))
+        return min(
+            1.0,
+            (0.3 if has_numbers else 0) + (0.4 if has_steps else 0) + (0.3 if has_answer else 0),
+        )
 
     def _try_direct_compute(self, text: str):
         """Attempt safe eval of simple arithmetic expressions."""
         # Extract a clean math expression
-        expr = re.sub(r'[^0-9+\-*/().^ ]', '', text).strip()
+        expr = re.sub(r"[^0-9+\-*/().^ ]", "", text).strip()
         if not expr or len(expr) < 2:
             return None
         try:
             # Replace ^ with ** for power
-            expr = expr.replace('^', '**')
+            expr = expr.replace("^", "**")
             result = eval(expr, {"__builtins__": {}})  # safe minimal eval
             return result
         except Exception:
@@ -75,7 +87,8 @@ class MathematicsSkillPack(SkillPack):
         return tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     def _estimate_confidence(self, output: str) -> float:
-        if not output: return 0.1
+        if not output:
+            return 0.1
         has_eq = "=" in output
-        has_num = bool(re.search(r'\d+\.?\d*', output))
+        has_num = bool(re.search(r"\d+\.?\d*", output))
         return min(1.0, 0.3 + (0.4 if has_eq else 0) + (0.3 if has_num else 0))

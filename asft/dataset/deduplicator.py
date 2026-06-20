@@ -2,6 +2,7 @@
 Dataset Deduplicator — MinHash LSH for near-duplicate detection and removal.
 Dramatically reduces dataset size while preserving diversity.
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,17 +27,18 @@ class DatasetDeduplicator:
         text = text.lower().strip()
         if len(text) <= k:
             return {text}
-        return {text[i:i+k] for i in range(len(text) - k + 1)}
+        return {text[i : i + k] for i in range(len(text) - k + 1)}
 
     def _minhash(self, shingles: set[str]):
         try:
             from datasketch import MinHash
+
             m = MinHash(num_perm=self._num_perm)
             for s in shingles:
                 m.update(s.encode("utf8"))
             return m
         except ImportError:
-            raise ImportError("Install datasketch: pip install datasketch")
+            raise ImportError("Install datasketch: pip install datasketch")  # noqa: B904
 
     def deduplicate(
         self, texts: list[str], ids: list[str] | None = None
@@ -65,7 +67,7 @@ class DatasetDeduplicator:
         kept_indices: list[int] = []
         duplicate_count = 0
 
-        for i, (mh, doc_id) in enumerate(zip(minhashes, ids)):
+        for i, (mh, doc_id) in enumerate(zip(minhashes, ids, strict=False)):
             candidates = lsh.query(mh)
             if not candidates:
                 lsh.insert(doc_id, mh)
@@ -84,7 +86,9 @@ class DatasetDeduplicator:
         }
         logger.info(
             "Deduplication: %d → %d (%.1f%% removed)",
-            stats["original_count"], stats["kept_count"], stats["reduction_ratio"] * 100,
+            stats["original_count"],
+            stats["kept_count"],
+            stats["reduction_ratio"] * 100,
         )
         return kept_texts, kept_ids, stats
 

@@ -5,6 +5,7 @@ Every concrete implementation (memory backend, trainer, skill pack, verifier)
 MUST implement the corresponding interface. This enforces the dependency
 inversion principle and allows clean unit testing via mocks.
 """
+
 from __future__ import annotations
 
 import abc
@@ -19,9 +20,10 @@ from typing import Any
 @dataclass
 class MemoryQueryResult:
     """A single result returned from a memory query."""
-    source: str           # which memory tier returned this
-    content: Any          # the retrieved content
-    confidence: float     # relevance score 0–1
+
+    source: str  # which memory tier returned this
+    content: Any  # the retrieved content
+    confidence: float  # relevance score 0–1
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -45,7 +47,9 @@ class IMemoryStore(abc.ABC):
         """Retrieve top-k items most relevant to the query vector."""
 
     @abc.abstractmethod
-    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None) -> list[str]:
+    async def batch_insert(
+        self, contents: list[str], metadatas: list[dict] | None = None
+    ) -> list[str]:
         """Insert multiple items efficiently. Returns a list of IDs."""
 
     @abc.abstractmethod
@@ -61,39 +65,41 @@ class IMemoryStore(abc.ABC):
 @dataclass
 class TrainingConfig:
     """Validated, hardware-aware training configuration."""
+
     model_name: str
     dataset_path: str
-    method: str                   = "peft_lora"   # peft_lora | qlora | sparse
-    max_steps: int                = 500
-    learning_rate: float          = 2e-4
-    batch_size: int               = 1
+    method: str = "peft_lora"  # peft_lora | qlora | sparse
+    max_steps: int = 500
+    learning_rate: float = 2e-4
+    batch_size: int = 1
     gradient_accumulation_steps: int = 4
-    warmup_ratio: float           = 0.05
-    max_grad_norm: float          = 1.0
-    lora_r: int                   = 8
-    lora_alpha: int               = 16
-    lora_dropout: float           = 0.05
-    quantization: str             = "4bit"        # none | 4bit | 8bit
-    output_dir: str               = "./asft_data/checkpoints"
-    eval_steps: int               = 50
-    save_steps: int               = 100
-    sparsity_ratio: float         = 0.95          # only used by sparse method
-    fsdp: str | None           = None          # e.g., "full_shard auto_wrap"
-    deepspeed: str | None      = None          # e.g., "ds_config.json"
+    warmup_ratio: float = 0.05
+    max_grad_norm: float = 1.0
+    lora_r: int = 8
+    lora_alpha: int = 16
+    lora_dropout: float = 0.05
+    quantization: str = "4bit"  # none | 4bit | 8bit
+    output_dir: str = "./asft_data/checkpoints"
+    eval_steps: int = 50
+    save_steps: int = 100
+    sparsity_ratio: float = 0.95  # only used by sparse method
+    fsdp: str | None = None  # e.g., "full_shard auto_wrap"
+    deepspeed: str | None = None  # e.g., "ds_config.json"
 
 
 @dataclass
 class TrainingResult:
     """Outcome of a completed training job."""
+
     job_id: str
-    status: str                   # completed | failed | cancelled
+    status: str  # completed | failed | cancelled
     method: str
-    final_loss: float | None   = None
-    eval_loss: float | None    = None
-    steps_completed: int          = 0
-    duration_seconds: float       = 0.0
+    final_loss: float | None = None
+    eval_loss: float | None = None
+    steps_completed: int = 0
+    duration_seconds: float = 0.0
     checkpoint_path: str | None = None
-    error_message: str | None  = None
+    error_message: str | None = None
 
 
 class ITrainer(abc.ABC):
@@ -116,23 +122,25 @@ class ITrainer(abc.ABC):
 @dataclass
 class SkillInput:
     """Validated, typed input for a skill pack."""
+
     task: str
-    context: str | None        = None
-    max_tokens: int               = 512
-    temperature: float            = 0.7
-    metadata: dict[str, Any]      = field(default_factory=dict)
+    context: str | None = None
+    max_tokens: int = 512
+    temperature: float = 0.7
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class SkillOutput:
     """Typed, auditable output from a skill pack."""
+
     skill_name: str
     output: str
-    confidence: float             # 0–1 calibrated confidence
+    confidence: float  # 0–1 calibrated confidence
     duration_seconds: float
-    requires_disclaimer: bool     = False
-    disclaimer: str | None     = None
-    metadata: dict[str, Any]      = field(default_factory=dict)
+    requires_disclaimer: bool = False
+    disclaimer: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ISkillPack(abc.ABC):
@@ -174,12 +182,13 @@ class ISkillPack(abc.ABC):
 @dataclass
 class VerificationResult:
     """Result of output verification."""
+
     verified: bool
-    method: str               # "math_cas" | "code_sandbox" | "memory" | "none"
-    confidence: float         # 0–1
-    details: str              = ""
+    method: str  # "math_cas" | "code_sandbox" | "memory" | "none"
+    confidence: float  # 0–1
+    details: str = ""
     corrections: str | None = None
-    safe_to_execute: bool     = True  # set False if code deemed unsafe
+    safe_to_execute: bool = True  # set False if code deemed unsafe
 
 
 class IVerifier(abc.ABC):
@@ -198,14 +207,15 @@ class IVerifier(abc.ABC):
 @dataclass
 class JobRecord:
     """Persistent record of a background job."""
+
     job_id: str
-    job_type: str             # "training" | "compression"
-    status: str               # "queued" | "running" | "completed" | "failed" | "cancelled"
+    job_type: str  # "training" | "compression"
+    status: str  # "queued" | "running" | "completed" | "failed" | "cancelled"
     created_at: float
     updated_at: float
-    payload: dict[str, Any]   = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
     result: dict[str, Any] | None = None
-    error: str | None      = None
+    error: str | None = None
 
 
 class IJobStore(abc.ABC):
@@ -220,15 +230,15 @@ class IJobStore(abc.ABC):
         """Retrieve a job record by ID. Returns None if not found."""
 
     @abc.abstractmethod
-    async def update_status(self, job_id: str, status: str,
-                            result: dict | None = None,
-                            error: str | None = None) -> None:
+    async def update_status(
+        self, job_id: str, status: str, result: dict | None = None, error: str | None = None
+    ) -> None:
         """Atomically update job status and result."""
 
     @abc.abstractmethod
-    async def list_jobs(self, job_type: str | None = None,
-                        status: str | None = None,
-                        limit: int = 50) -> list[JobRecord]:
+    async def list_jobs(
+        self, job_type: str | None = None, status: str | None = None, limit: int = 50
+    ) -> list[JobRecord]:
         """List jobs, optionally filtered by type and status."""
 
 
@@ -241,18 +251,17 @@ class IMetricsCollector(abc.ABC):
     """Abstract contract for metrics collection."""
 
     @abc.abstractmethod
-    def increment(self, name: str, value: float = 1.0,
-                  labels: dict[str, str] | None = None) -> None:
+    def increment(
+        self, name: str, value: float = 1.0, labels: dict[str, str] | None = None
+    ) -> None:
         """Increment a counter metric."""
 
     @abc.abstractmethod
-    def gauge(self, name: str, value: float,
-              labels: dict[str, str] | None = None) -> None:
+    def gauge(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         """Set an absolute gauge value."""
 
     @abc.abstractmethod
-    def histogram(self, name: str, value: float,
-                  labels: dict[str, str] | None = None) -> None:
+    def histogram(self, name: str, value: float, labels: dict[str, str] | None = None) -> None:
         """Record a histogram observation (e.g., latency)."""
 
 
@@ -260,27 +269,32 @@ class IMetricsCollector(abc.ABC):
 # Optimization & Distillation Interfaces
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class OptimizationDecision:
     """Decision produced by the AutoOptimizer."""
-    action: str               # "train" | "distill" | "rag" | "skill" | "reject"
-    method: str               # "full" | "qlora" | "sparse"
-    reasoning: str            # Explanation of why this action was chosen
-    estimated_cost: float     # Estimated cost in USD
-    projected_accuracy: float # Projected final accuracy
+
+    action: str  # "train" | "distill" | "rag" | "skill" | "reject"
+    method: str  # "full" | "qlora" | "sparse"
+    reasoning: str  # Explanation of why this action was chosen
+    estimated_cost: float  # Estimated cost in USD
+    projected_accuracy: float  # Projected final accuracy
 
 
 class IOptimizer(abc.ABC):
     """Abstract contract for the training decision engine."""
 
     @abc.abstractmethod
-    def decide(self, task: str, domain: str, target_accuracy: float, budget_usd: float) -> OptimizationDecision:
+    def decide(
+        self, task: str, domain: str, target_accuracy: float, budget_usd: float
+    ) -> OptimizationDecision:
         """Evaluate alternatives and return a cost-aware training decision."""
 
 
 @dataclass
 class DistillationConfig:
     """Configuration for Knowledge Distillation."""
+
     teacher_model: str
     student_model: str
     dataset_path: str
@@ -297,9 +311,11 @@ class IDistiller(abc.ABC):
     def distill(self, config: DistillationConfig) -> TrainingResult:
         """Run the distillation process."""
 
+
 # ---------------------------------------------------------------------------
 # Sandbox Interfaces
 # ---------------------------------------------------------------------------
+
 
 class ISandbox(abc.ABC):
     """Abstract contract for secure code execution sandbox."""
@@ -316,9 +332,11 @@ class ISandbox(abc.ABC):
     async def health_check(self) -> bool:
         """Return True if the sandbox environment is healthy."""
 
+
 # ---------------------------------------------------------------------------
 # Evaluation Interfaces
 # ---------------------------------------------------------------------------
+
 
 class IEvaluationHarness(abc.ABC):
     """Abstract contract for model evaluation harness (e.g. lm-evaluation-harness)."""
@@ -326,5 +344,3 @@ class IEvaluationHarness(abc.ABC):
     @abc.abstractmethod
     async def evaluate(self, model_path: str, tasks: list[str]) -> dict[str, Any]:
         """Run benchmark tasks on a model and return metrics."""
-
-

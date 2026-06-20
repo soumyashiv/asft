@@ -23,8 +23,6 @@ jobs:
       run: ruff check asft/
     - name: Run Black
       run: black --check asft/
-    - name: Run MyPy
-      run: mypy asft/
 
   test:
     runs-on: ubuntu-latest

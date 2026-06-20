@@ -2,6 +2,7 @@
 Confidence Scorer — Assigns confidence, reliability, and verification scores
 to every model output. Low scores trigger additional reasoning passes.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ConfidenceScore:
-    confidence: float       # 0–1: overall output confidence
-    reliability: float      # 0–1: factual reliability estimate
-    verification: float     # 0–1: how well the output can be verified
-    composite: float        # weighted combination
-    flags: list[str]        # detected quality issues
+    confidence: float  # 0–1: overall output confidence
+    reliability: float  # 0–1: factual reliability estimate
+    verification: float  # 0–1: how well the output can be verified
+    composite: float  # weighted combination
+    flags: list[str]  # detected quality issues
 
     @property
     def needs_extra_pass(self) -> bool:
@@ -59,10 +60,10 @@ _HALLUCINATION_PATTERNS = [
 
 # Patterns that indicate verifiable content
 _VERIFIABLE_PATTERNS = [
-    r"\d+(\.\d+)?",        # numbers
-    r"```[\s\S]+?```",     # code blocks
-    r"https?://\S+",       # URLs
-    r"\b\d{4}\b",          # years
+    r"\d+(\.\d+)?",  # numbers
+    r"```[\s\S]+?```",  # code blocks
+    r"https?://\S+",  # URLs
+    r"\b\d{4}\b",  # years
 ]
 
 
@@ -84,8 +85,9 @@ class ConfidenceScorer:
         self._hallucination_re = [re.compile(p, re.IGNORECASE) for p in _HALLUCINATION_PATTERNS]
         self._verifiable_re = [re.compile(p) for p in _VERIFIABLE_PATTERNS]
 
-    def score(self, output: str, task_type: str = "general",
-              model_logprobs: list[float] | None = None) -> ConfidenceScore:
+    def score(
+        self, output: str, task_type: str = "general", model_logprobs: list[float] | None = None
+    ) -> ConfidenceScore:
         """Score a model output."""
         flags: list[str] = []
 

@@ -32,6 +32,7 @@ HONEST LIMITATIONS:
       formula relating training steps to downstream task accuracy.
     - Use this to decide "is this worth investigating?" not for billing.
 """
+
 from __future__ import annotations
 
 import logging
@@ -47,12 +48,17 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MODEL_PARAM_BILLIONS: dict[str, float] = {
     # Qwen2 family
-    "qwen/qwen2-0.5b": 0.5, "qwen/qwen2-1.5b": 1.5,
-    "qwen/qwen2-7b": 7.0, "qwen/qwen2-72b": 72.0,
+    "qwen/qwen2-0.5b": 0.5,
+    "qwen/qwen2-1.5b": 1.5,
+    "qwen/qwen2-7b": 7.0,
+    "qwen/qwen2-72b": 72.0,
     # Qwen2.5 family
-    "qwen/qwen2.5-0.5b": 0.5, "qwen/qwen2.5-1.5b": 1.5,
-    "qwen/qwen2.5-3b": 3.0, "qwen/qwen2.5-7b": 7.0,
-    "qwen/qwen2.5-14b": 14.0, "qwen/qwen2.5-32b": 32.0,
+    "qwen/qwen2.5-0.5b": 0.5,
+    "qwen/qwen2.5-1.5b": 1.5,
+    "qwen/qwen2.5-3b": 3.0,
+    "qwen/qwen2.5-7b": 7.0,
+    "qwen/qwen2.5-14b": 14.0,
+    "qwen/qwen2.5-32b": 32.0,
     "qwen/qwen2.5-72b": 72.0,
     # Llama 3 family
     "meta-llama/meta-llama-3-8b": 8.0,
@@ -67,49 +73,65 @@ _MODEL_PARAM_BILLIONS: dict[str, float] = {
     "mistralai/mistral-7b-instruct-v0.2": 7.0,
     "mistralai/mistral-nemo-12b": 12.0,
     # Phi family
-    "microsoft/phi-2": 2.7, "microsoft/phi-3-mini-4k-instruct": 3.8,
+    "microsoft/phi-2": 2.7,
+    "microsoft/phi-3-mini-4k-instruct": 3.8,
     "microsoft/phi-3.5-mini-instruct": 3.8,
     # Gemma family
-    "google/gemma-2b": 2.0, "google/gemma-7b": 7.0,
-    "google/gemma-2-2b": 2.0, "google/gemma-2-9b": 9.0,
+    "google/gemma-2b": 2.0,
+    "google/gemma-7b": 7.0,
+    "google/gemma-2-2b": 2.0,
+    "google/gemma-2-9b": 9.0,
 }
 
 # GPU TFLOPS for bf16 (approximate peak; real utilization is ~30-50% of peak)
 _GPU_TFLOPS: dict[str, float] = {
-    "h100": 312.0, "a100_80gb": 312.0, "a100_40gb": 312.0,
-    "a6000": 154.0, "rtx4090": 82.6, "rtx3090": 35.6,
-    "v100": 112.0, "t4": 65.0, "cpu": 0.05,
+    "h100": 312.0,
+    "a100_80gb": 312.0,
+    "a100_40gb": 312.0,
+    "a6000": 154.0,
+    "rtx4090": 82.6,
+    "rtx3090": 35.6,
+    "v100": 112.0,
+    "t4": 65.0,
+    "cpu": 0.05,
     "unknown": 25.0,  # conservative default for unidentified GPU
 }
 
 # Cost per GPU-hour (USD, on-demand, mid-2024 estimates)
 _GPU_COST_PER_HOUR: dict[str, float] = {
-    "h100": 4.50, "a100_80gb": 3.20, "a100_40gb": 2.80,
-    "a6000": 1.80, "rtx4090": 0.80, "rtx3090": 0.50,
-    "v100": 2.00, "t4": 0.60, "cpu": 0.08,
+    "h100": 4.50,
+    "a100_80gb": 3.20,
+    "a100_40gb": 2.80,
+    "a6000": 1.80,
+    "rtx4090": 0.80,
+    "rtx3090": 0.50,
+    "v100": 2.00,
+    "t4": 0.60,
+    "cpu": 0.08,
     "unknown": 2.00,
 }
 
 # Trainable parameter fraction for each method (realistic, from literature)
 _TRAINABLE_FRACTION: dict[str, float] = {
-    "peft_lora": 0.005,   # LoRA: ~0.1–1% of params; 0.5% is typical
-    "qlora": 0.005,       # QLoRA: same LoRA fraction, 4-bit base
+    "peft_lora": 0.005,  # LoRA: ~0.1–1% of params; 0.5% is typical
+    "qlora": 0.005,  # QLoRA: same LoRA fraction, 4-bit base
     "lora": 0.005,
     "full": 1.0,
-    "sparse": 0.05,       # Sparse: selective layer training, ~5%
+    "sparse": 0.05,  # Sparse: selective layer training, ~5%
 }
 
 
 @dataclass
 class TrainingEstimate:
     """Results of a cost/time estimation."""
+
     model_name: str
     n_params_billions: float
     method: str
     dataset_size: int
 
     # Compute estimates
-    total_flops: float = 0.0           # raw FLOPs
+    total_flops: float = 0.0  # raw FLOPs
     gpu_hours: float = 0.0
     cost_usd: float = 0.0
     wall_time_minutes: float = 0.0
@@ -124,7 +146,7 @@ class TrainingEstimate:
     # Decision
     recommendation: str = "proceed"
     reasoning: str = ""
-    roi_score: float = 0.0               # accuracy_gain / cost_usd
+    roi_score: float = 0.0  # accuracy_gain / cost_usd
 
     # Warnings
     warnings: list = field(default_factory=list)
@@ -213,10 +235,13 @@ class CostEstimator:
         # Scale logarithmically with dataset size, diminishing returns.
         # ---------------------------------------------------------------
         base_gain = {
-            "qlora": 0.08, "peft_lora": 0.09, "lora": 0.09,
-            "full": 0.12, "sparse": 0.05,
+            "qlora": 0.08,
+            "peft_lora": 0.09,
+            "lora": 0.09,
+            "full": 0.12,
+            "sparse": 0.05,
         }.get(method, 0.07)
-        dataset_scale = math.log10(max(10, dataset_size)) / 4.0   # 10→0.25, 10k→1.0, 1M→1.5
+        dataset_scale = math.log10(max(10, dataset_size)) / 4.0  # 10→0.25, 10k→1.0, 1M→1.5
         size_penalty = 1.0 / math.log10(max(10, n_params * 1e3))  # larger model → smaller gain
         accuracy_gain = min(0.25, base_gain * dataset_scale * size_penalty)
 
@@ -225,15 +250,27 @@ class CostEstimator:
         # ---------------------------------------------------------------
         roi_score = accuracy_gain / max(cost_usd, 0.001)
         recommendation, reasoning, warnings = self._recommend(
-            method, cost_usd, gpu_hours, accuracy_gain, dataset_size,
-            n_params, trainable_frac, hardware_profile
+            method,
+            cost_usd,
+            gpu_hours,
+            accuracy_gain,
+            dataset_size,
+            n_params,
+            trainable_frac,
+            hardware_profile,
         )
 
         logger.info(
             "CostEstimate | model=%s method=%s params=%.1fB dataset=%d "
             "steps=%d gpu_hours=%.2f cost=$%.2f accuracy_gain≈%.1f%%",
-            model_name, method, n_params, dataset_size, actual_steps,
-            gpu_hours, cost_usd, accuracy_gain * 100,
+            model_name,
+            method,
+            n_params,
+            dataset_size,
+            actual_steps,
+            gpu_hours,
+            cost_usd,
+            accuracy_gain * 100,
         )
 
         return TrainingEstimate(
@@ -275,6 +312,7 @@ class CostEstimator:
                 return params
         # Heuristic from name: look for patterns like "7b", "13b", "70b"
         import re
+
         m = re.search(r"(\d+\.?\d*)b", key)
         if m:
             return float(m.group(1))
@@ -293,9 +331,14 @@ class CostEstimator:
 
     def _recommend(
         self,
-        method: str, cost_usd: float, gpu_hours: float,
-        accuracy_gain: float, dataset_size: int, n_params: float,
-        trainable_frac: float, hardware_profile: Any | None,
+        method: str,
+        cost_usd: float,
+        gpu_hours: float,
+        accuracy_gain: float,
+        dataset_size: int,
+        n_params: float,
+        trainable_frac: float,
+        hardware_profile: Any | None,
     ) -> tuple[str, str, list]:
         """Produce a human-readable recommendation."""
         warnings = []
@@ -308,7 +351,11 @@ class CostEstimator:
                 "Consider using retrieval or a skill pack instead."
             )
 
-        if n_params > 30 and method == "peft_lora" and getattr(hardware_profile, "vram_gb", 999) < 24:
+        if (
+            n_params > 30
+            and method == "peft_lora"
+            and getattr(hardware_profile, "vram_gb", 999) < 24
+        ):
             warnings.append(
                 f"Model ({n_params}B params) may not fit in available VRAM with {method}. "
                 "Consider QLoRA (4-bit) instead."

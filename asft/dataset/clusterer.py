@@ -2,6 +2,7 @@
 Dataset Clusterer — Groups similar samples to identify redundancy.
 Uses KMeans or DBSCAN on sentence embeddings.
 """
+
 from __future__ import annotations
 
 import logging
@@ -18,8 +19,13 @@ class DatasetClusterer:
     Enables representative sample selection within each cluster.
     """
 
-    def __init__(self, method: str = "kmeans", n_clusters: int | None = None,
-                 min_cluster_size: int = 3, reduction_ratio: float = 0.3):
+    def __init__(
+        self,
+        method: str = "kmeans",
+        n_clusters: int | None = None,
+        min_cluster_size: int = 3,
+        reduction_ratio: float = 0.3,
+    ):
         self._method = method
         self._n_clusters = n_clusters
         self._min_cluster_size = min_cluster_size
@@ -28,6 +34,7 @@ class DatasetClusterer:
     def embed_texts(self, texts: list[str], model_name: str = "all-MiniLM-L6-v2") -> np.ndarray:
         """Embed texts using sentence-transformers."""
         from sentence_transformers import SentenceTransformer
+
         model = SentenceTransformer(model_name)
         embeddings = model.encode(texts, show_progress_bar=True, normalize_embeddings=True)
         return embeddings
@@ -48,16 +55,18 @@ class DatasetClusterer:
     def _kmeans(self, embeddings: np.ndarray, n: int) -> tuple[np.ndarray, dict]:
         k = self._n_clusters or max(2, int(n * self._reduction_ratio))
         k = min(k, n)
-        
+
         if n > 10000:
             from sklearn.cluster import MiniBatchKMeans
+
             logger.info("MiniBatchKMeans clustering: n=%d k=%d", n, k)
             km = MiniBatchKMeans(n_clusters=k, random_state=42, n_init="auto", batch_size=1024)
         else:
             from sklearn.cluster import KMeans
+
             logger.info("KMeans clustering: n=%d k=%d", n, k)
             km = KMeans(n_clusters=k, random_state=42, n_init=10)
-            
+
         labels = km.fit_predict(embeddings)
         stats = {
             "method": "minibatch_kmeans" if n > 10000 else "kmeans",
@@ -69,6 +78,7 @@ class DatasetClusterer:
 
     def _dbscan(self, embeddings: np.ndarray) -> tuple[np.ndarray, dict]:
         from sklearn.cluster import DBSCAN
+
         db = DBSCAN(eps=0.3, min_samples=self._min_cluster_size, metric="cosine")
         labels = db.fit_predict(embeddings)
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
@@ -82,8 +92,9 @@ class DatasetClusterer:
         }
         return labels, stats
 
-    def cluster_texts(self, texts: list[str],
-                      embedding_model: str = "all-MiniLM-L6-v2") -> tuple[np.ndarray, dict]:
+    def cluster_texts(
+        self, texts: list[str], embedding_model: str = "all-MiniLM-L6-v2"
+    ) -> tuple[np.ndarray, dict]:
         """Convenience: embed + cluster in one call."""
         embeddings = self.embed_texts(texts, model_name=embedding_model)
         return self.cluster(embeddings)

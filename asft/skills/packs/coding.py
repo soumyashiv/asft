@@ -1,4 +1,5 @@
 """Coding Skill Pack — Code generation, debugging, and review."""
+
 from __future__ import annotations
 
 import time
@@ -9,7 +10,9 @@ from asft.skills.skill_pack import SkillPack, SkillResult
 class CodingSkillPack(SkillPack):
     def __init__(self, pack_dir=None):
         super().__init__("coding", pack_dir)
-        self.meta.description = "Code generation, debugging, and review across all programming languages"
+        self.meta.description = (
+            "Code generation, debugging, and review across all programming languages"
+        )
         self.meta.domain = "coding"
         self.meta.tags = ["code", "programming", "debug", "review", "algorithms"]
 

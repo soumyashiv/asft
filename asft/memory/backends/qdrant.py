@@ -8,12 +8,14 @@ class QdrantBackend(IMemoryStore):
 
     def __init__(self, collection_name: str = "asft_memory", location: str = ":memory:"):
         import qdrant_client
+
         self.client = qdrant_client.QdrantClient(location=location)
         self.collection_name = collection_name
         self._ensure_collection()
 
     def _ensure_collection(self):
         from qdrant_client.http.models import Distance, VectorParams
+
         try:
             self.client.get_collection(self.collection_name)
         except Exception:
@@ -23,24 +25,38 @@ class QdrantBackend(IMemoryStore):
                 vectors_config=VectorParams(size=384, distance=Distance.COSINE),
             )
 
-    async def add(self, content: str, metadata: dict | None = None, vector: list[float] | None = None) -> str:
+    async def add(
+        self, content: str, metadata: dict | None = None, vector: list[float] | None = None
+    ) -> str:
         """Add a single item. Note: Qdrant requires vectors, we assume they are passed or computed."""
         from qdrant_client.http.models import PointStruct
+
         point_id = str(uuid.uuid4())
         # In a real scenario, the embedding is computed by the MemoryManager before calling backend
         if not vector:
             vector = [0.0] * 384
-            
-        point = PointStruct(id=point_id, vector=vector, payload={"content": content, **(metadata or {})})
+
+        point = PointStruct(
+            id=point_id, vector=vector, payload={"content": content, **(metadata or {})}
+        )
         self.client.upsert(collection_name=self.collection_name, points=[point])
         return point_id
 
-    async def update(self, item_id: str, content: str, metadata: dict | None = None, vector: list[float] | None = None) -> bool:
+    async def update(
+        self,
+        item_id: str,
+        content: str,
+        metadata: dict | None = None,
+        vector: list[float] | None = None,
+    ) -> bool:
         """Update an item."""
         from qdrant_client.http.models import PointStruct
+
         if not vector:
             vector = [0.0] * 384
-        point = PointStruct(id=item_id, vector=vector, payload={"content": content, **(metadata or {})})
+        point = PointStruct(
+            id=item_id, vector=vector, payload={"content": content, **(metadata or {})}
+        )
         self.client.upsert(collection_name=self.collection_name, points=[point])
         return True
 
@@ -52,23 +68,27 @@ class QdrantBackend(IMemoryStore):
     async def search(self, query_vector: list[float], top_k: int = 5) -> list[MemoryQueryResult]:
         """Search similar items."""
         results = self.client.search(
-            collection_name=self.collection_name,
-            query_vector=query_vector,
-            limit=top_k
+            collection_name=self.collection_name, query_vector=query_vector, limit=top_k
         )
         return [
             MemoryQueryResult(
                 source="qdrant",
                 content=r.payload.get("content", ""),
                 confidence=r.score,
-                metadata={k: v for k, v in r.payload.items() if k != "content"}
+                metadata={k: v for k, v in r.payload.items() if k != "content"},
             )
             for r in results
         ]
 
-    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None, vectors: list[list[float]] | None = None) -> list[str]:
+    async def batch_insert(
+        self,
+        contents: list[str],
+        metadatas: list[dict] | None = None,
+        vectors: list[list[float]] | None = None,
+    ) -> list[str]:
         """Insert multiple items."""
         from qdrant_client.http.models import PointStruct
+
         points = []
         ids = []
         for i, content in enumerate(contents):
@@ -76,8 +96,10 @@ class QdrantBackend(IMemoryStore):
             ids.append(point_id)
             meta = metadatas[i] if metadatas else {}
             vec = vectors[i] if vectors else [0.0] * 384
-            points.append(PointStruct(id=point_id, vector=vec, payload={"content": content, **meta}))
-            
+            points.append(
+                PointStruct(id=point_id, vector=vec, payload={"content": content, **meta})
+            )
+
         self.client.upsert(collection_name=self.collection_name, points=points)
         return ids
 

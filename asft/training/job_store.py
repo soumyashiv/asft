@@ -16,6 +16,7 @@ This implementation:
   - Is replaceable with Redis for distributed deployments
     (implements IJobStore ABC)
 """
+
 from __future__ import annotations
 
 import json
@@ -50,6 +51,7 @@ class SQLiteJobStore(IJobStore):
             return
         try:
             import aiosqlite
+
             async with aiosqlite.connect(self._db_path) as db:
                 await db.execute("""
                     CREATE TABLE IF NOT EXISTS jobs (
@@ -63,12 +65,8 @@ class SQLiteJobStore(IJobStore):
                         error       TEXT
                     )
                 """)
-                await db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)"
-                )
-                await db.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_jobs_type ON jobs(job_type)"
-                )
+                await db.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status)")
+                await db.execute("CREATE INDEX IF NOT EXISTS idx_jobs_type ON jobs(job_type)")
                 await db.commit()
             self._initialized = True
             logger.debug("Job store initialised: %s", self._db_path)
@@ -122,9 +120,7 @@ class SQLiteJobStore(IJobStore):
 
         async with aiosqlite.connect(self._db_path) as db:
             db.row_factory = aiosqlite.Row
-            async with db.execute(
-                "SELECT * FROM jobs WHERE job_id = ?", (job_id,)
-            ) as cursor:
+            async with db.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)) as cursor:
                 row = await cursor.fetchone()
 
         if row is None:
@@ -234,15 +230,22 @@ class InMemoryJobStore(IJobStore):
     def __init__(self) -> None:
         self._jobs: dict[str, JobRecord] = {}
 
-    async def create(self, job_id: str | None = None,
-                     job_type: str = "training",
-                     payload: dict[str, Any] | None = None) -> JobRecord:
+    async def create(
+        self,
+        job_id: str | None = None,
+        job_type: str = "training",
+        payload: dict[str, Any] | None = None,
+    ) -> JobRecord:
         if job_id is None:
             job_id = str(uuid.uuid4())[:12]
         now = time.time()
         record = JobRecord(
-            job_id=job_id, job_type=job_type, status="queued",
-            created_at=now, updated_at=now, payload=payload or {}
+            job_id=job_id,
+            job_type=job_type,
+            status="queued",
+            created_at=now,
+            updated_at=now,
+            payload=payload or {},
         )
         self._jobs[job_id] = record
         return record
@@ -250,9 +253,9 @@ class InMemoryJobStore(IJobStore):
     async def get(self, job_id: str) -> JobRecord | None:
         return self._jobs.get(job_id)
 
-    async def update_status(self, job_id: str, status: str,
-                            result: dict | None = None,
-                            error: str | None = None) -> None:
+    async def update_status(
+        self, job_id: str, status: str, result: dict | None = None, error: str | None = None
+    ) -> None:
         if job_id not in self._jobs:
             raise JobNotFoundError(f"Job '{job_id}' not found.")
         r = self._jobs[job_id]
@@ -263,9 +266,9 @@ class InMemoryJobStore(IJobStore):
         if error is not None:
             r.error = error
 
-    async def list_jobs(self, job_type: str | None = None,
-                        status: str | None = None,
-                        limit: int = 50) -> list[JobRecord]:
+    async def list_jobs(
+        self, job_type: str | None = None, status: str | None = None, limit: int = 50
+    ) -> list[JobRecord]:
         records = list(self._jobs.values())
         if job_type:
             records = [r for r in records if r.job_type == job_type]
@@ -287,6 +290,7 @@ def create_job_store(db_path: str | None = None) -> IJobStore:
     """
     try:
         import aiosqlite  # noqa: F401
+
         return SQLiteJobStore(db_path or "./asft_data/jobs.db")
     except ImportError:
         logger.warning("aiosqlite not available — using in-memory job store (dev only)")

@@ -3,6 +3,7 @@ Neuron Selector — Identifies which parameters to train based on importance.
 Implements: Magnitude, Gradient, Fisher Information, and Activation-based selection.
 Produces a SparseSelectionMask that freezes all non-selected parameters.
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,6 +20,7 @@ class SparseSelectionMask:
     Defines which parameters should be trained (True) vs frozen (False).
     Also tracks sparsity metrics.
     """
+
     trainable_params: set[str] = field(default_factory=set)
     frozen_params: set[str] = field(default_factory=set)
     sparsity_ratio: float = 0.95
@@ -51,15 +53,21 @@ class NeuronSelector:
       - activation:  Use output of ActivationAnalyzer to select important layers
     """
 
-    def __init__(self, model: nn.Module, sparsity_ratio: float = 0.95,
-                 method: str = "activation", dynamic: bool = True):
+    def __init__(
+        self,
+        model: nn.Module,
+        sparsity_ratio: float = 0.95,
+        method: str = "activation",
+        dynamic: bool = True,
+    ):
         self._model = model
         self._sparsity_ratio = sparsity_ratio
         self._method = method
         self._dynamic = dynamic  # Adjust ratio based on task complexity
 
-    def select(self, activation_report=None, dataloader=None,
-               task_complexity: float = 0.5) -> SparseSelectionMask:
+    def select(
+        self, activation_report=None, dataloader=None, task_complexity: float = 0.5
+    ) -> SparseSelectionMask:
         """
         Run selection and return a SparseSelectionMask.
         `task_complexity`: 0.0 (trivial) → 1.0 (very complex).
@@ -101,7 +109,9 @@ class NeuronSelector:
         total = sum(p.numel() for p in self._model.parameters())
         logger.info(
             "Mask applied: trainable=%d / %d params (%.2f%%)",
-            trainable, total, 100 * trainable / max(1, total)
+            trainable,
+            total,
+            100 * trainable / max(1, total),
         )
 
     # ------------------------------------------------------------------
@@ -142,8 +152,9 @@ class NeuronSelector:
             if i >= 3:
                 break
             if isinstance(batch, dict):
-                inputs = {k: v for k, v in batch.items()
-                          if k in ("input_ids", "attention_mask", "labels")}
+                inputs = {
+                    k: v for k, v in batch.items() if k in ("input_ids", "attention_mask", "labels")
+                }
                 outputs = self._model(**inputs)
                 loss = outputs.loss if hasattr(outputs, "loss") else outputs[0]
             else:
@@ -173,8 +184,9 @@ class NeuronSelector:
             if i >= 5:
                 break
             if isinstance(batch, dict):
-                inputs = {k: v for k, v in batch.items()
-                          if k in ("input_ids", "attention_mask", "labels")}
+                inputs = {
+                    k: v for k, v in batch.items() if k in ("input_ids", "attention_mask", "labels")
+                }
                 outputs = self._model(**inputs)
                 loss = outputs.loss if hasattr(outputs, "loss") else outputs[0]
             else:
@@ -205,10 +217,6 @@ class NeuronSelector:
         return SparseSelectionMask(trainable_params=trainable, frozen_params=frozen)
 
     def _count_params(self, mask: SparseSelectionMask) -> None:
-        param_map: dict[str, int] = {
-            name: p.numel() for name, p in self._model.named_parameters()
-        }
+        param_map: dict[str, int] = {name: p.numel() for name, p in self._model.named_parameters()}
         mask.total_params = sum(param_map.values())
-        mask.trainable_param_count = sum(
-            param_map.get(name, 0) for name in mask.trainable_params
-        )
+        mask.trainable_param_count = sum(param_map.get(name, 0) for name in mask.trainable_params)

@@ -2,6 +2,7 @@
 Semantic Memory — Structured fact/concept store with vector-backed retrieval.
 Stores named facts, concepts, and relationships for instant recall.
 """
+
 from __future__ import annotations
 
 import json
@@ -52,8 +53,9 @@ class SemanticMemory:
     Combines SQLite persistence with optional vector search.
     """
 
-    def __init__(self, db_path: str = "./asft_data/memory.db",
-                 vector_memory=None, max_facts: int = 50_000):
+    def __init__(
+        self, db_path: str = "./asft_data/memory.db", vector_memory=None, max_facts: int = 50_000
+    ):
         self._db_path = db_path
         self._vector_memory = vector_memory  # Optional VectorMemory
         self._max_facts = max_facts
@@ -89,8 +91,12 @@ class SemanticMemory:
             self._vector_memory.add_text(
                 doc_id=fact_id,
                 text=text,
-                metadata={"subject": record.subject, "predicate": record.predicate,
-                          "source": record.source, "confidence": record.confidence},
+                metadata={
+                    "subject": record.subject,
+                    "predicate": record.predicate,
+                    "source": record.source,
+                    "confidence": record.confidence,
+                },
             )
         self._maybe_prune()
         return fact_id

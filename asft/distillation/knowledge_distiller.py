@@ -51,6 +51,7 @@ WHEN IT FAILS:
     - Tasks requiring genuinely long chains of reasoning (CoT distillation
       requires specialized techniques beyond logit matching)
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,6 +66,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DistillationConfig:
     """Configuration for a knowledge distillation run."""
+
     teacher_model_name: str
     student_model_name: str
     output_dir: str = "./asft_data/distilled"
@@ -72,8 +74,8 @@ class DistillationConfig:
     text_field: str = "text"
 
     # Hinton hyperparameters
-    temperature: float = 4.0        # T: higher = softer teacher distribution
-    alpha: float = 0.5              # mix: 0=soft only, 1=hard only, 0.5=equal
+    temperature: float = 4.0  # T: higher = softer teacher distribution
+    alpha: float = 0.5  # mix: 0=soft only, 1=hard only, 0.5=equal
 
     # Training
     max_steps: int = 500
@@ -81,7 +83,7 @@ class DistillationConfig:
     batch_size: int = 2
     max_seq_len: int = 512
     gradient_accumulation_steps: int = 4
-    quantize_teacher: bool = True   # Load teacher in 4-bit to save memory
+    quantize_teacher: bool = True  # Load teacher in 4-bit to save memory
 
     # Validation
     eval_steps: int = 100
@@ -91,7 +93,8 @@ class DistillationConfig:
 @dataclass
 class DistillationResult:
     """Result of a distillation run."""
-    status: str                          # "completed" | "failed"
+
+    status: str  # "completed" | "failed"
     student_model_name: str
     output_dir: str
     total_steps: int = 0
@@ -100,7 +103,7 @@ class DistillationResult:
     training_time_seconds: float = 0.0
     teacher_param_billions: float = 0.0
     student_param_billions: float = 0.0
-    compression_ratio: float = 0.0       # teacher/student param count
+    compression_ratio: float = 0.0  # teacher/student param count
     error_message: str | None = None
     warnings: list[str] = field(default_factory=list)
 
@@ -142,13 +145,16 @@ class KnowledgeDistiller:
 
         logger.info(
             "KnowledgeDistiller: teacher=%s student=%s T=%.1f α=%.2f",
-            config.teacher_model_name, config.student_model_name,
-            config.temperature, config.alpha
+            config.teacher_model_name,
+            config.student_model_name,
+            config.temperature,
+            config.alpha,
         )
 
         try:
-            teacher, teacher_tok, student, student_tok, t_params, s_params = \
-                self._load_models(config, warnings)
+            teacher, teacher_tok, student, student_tok, t_params, s_params = self._load_models(
+                config, warnings
+            )
 
             dataloader = self._load_dataset(config, student_tok)
             if dataloader is None:
@@ -160,9 +166,7 @@ class KnowledgeDistiller:
                     warnings=warnings,
                 )
 
-            result = self._training_loop(
-                config, teacher, student, student_tok, dataloader, out_dir
-            )
+            result = self._training_loop(config, teacher, student, student_tok, dataloader, out_dir)
 
             elapsed = time.time() - start_time
             result.training_time_seconds = elapsed
@@ -172,10 +176,11 @@ class KnowledgeDistiller:
             result.warnings = warnings
 
             logger.info(
-                "Distillation completed | steps=%d loss=%.4f time=%.0fs "
-                "compression=%.1fx",
-                result.total_steps, result.final_distill_loss,
-                elapsed, result.compression_ratio
+                "Distillation completed | steps=%d loss=%.4f time=%.0fs " "compression=%.1fx",
+                result.total_steps,
+                result.final_distill_loss,
+                elapsed,
+                result.compression_ratio,
             )
             return result
 
@@ -201,9 +206,7 @@ class KnowledgeDistiller:
 
         # Teacher: load frozen, optionally quantized
         logger.info("Loading teacher: %s", config.teacher_model_name)
-        teacher_tok = AutoTokenizer.from_pretrained(
-            config.teacher_model_name, use_fast=True
-        )
+        teacher_tok = AutoTokenizer.from_pretrained(config.teacher_model_name, use_fast=True)
         if teacher_tok.pad_token is None:
             teacher_tok.pad_token = teacher_tok.eos_token
 
@@ -226,9 +229,7 @@ class KnowledgeDistiller:
 
         # Student: load trainable
         logger.info("Loading student: %s", config.student_model_name)
-        student_tok = AutoTokenizer.from_pretrained(
-            config.student_model_name, use_fast=True
-        )
+        student_tok = AutoTokenizer.from_pretrained(config.student_model_name, use_fast=True)
         if student_tok.pad_token is None:
             student_tok.pad_token = student_tok.eos_token
 
@@ -291,8 +292,11 @@ class KnowledgeDistiller:
 
         dummy_text = "The quick brown fox jumps over the lazy dog. " * 20
         enc = tokenizer(
-            dummy_text, return_tensors="pt", truncation=True,
-            max_length=config.max_seq_len, padding="max_length"
+            dummy_text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=config.max_seq_len,
+            padding="max_length",
         )
         dataset = TensorDataset(
             enc["input_ids"].repeat(64, 1),
@@ -301,8 +305,7 @@ class KnowledgeDistiller:
         return DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
 
     def _training_loop(
-        self, config: DistillationConfig, teacher, student, tokenizer,
-        dataloader, out_dir: Path
+        self, config: DistillationConfig, teacher, student, tokenizer, dataloader, out_dir: Path
     ) -> DistillationResult:
         """
         Run the Hinton distillation training loop.
@@ -346,7 +349,11 @@ class KnowledgeDistiller:
                     teacher_device = next(teacher.parameters()).device
                     t_out = teacher(
                         input_ids=input_ids.to(teacher_device),
-                        attention_mask=attention_mask.to(teacher_device) if attention_mask is not None else None,
+                        attention_mask=(
+                            attention_mask.to(teacher_device)
+                            if attention_mask is not None
+                            else None
+                        ),
                     )
                     t_logits = t_out.logits.to(device)
 
@@ -364,14 +371,16 @@ class KnowledgeDistiller:
                 s_logits_trimmed = s_logits[..., :min_vocab]
 
                 # Hard label loss (standard cross-entropy, already computed by HF)
-                hard_loss = s_out.loss if s_out.loss is not None else torch.tensor(0.0, device=device)
+                hard_loss = (
+                    s_out.loss if s_out.loss is not None else torch.tensor(0.0, device=device)
+                )
 
                 # Soft target loss (Hinton KL divergence)
                 T = config.temperature
                 soft_teacher = F.softmax(t_logits_trimmed / T, dim=-1)
                 soft_student = F.log_softmax(s_logits_trimmed / T, dim=-1)
                 # KL(p_teacher || p_student) = Σ p_t * (log p_t - log p_s)
-                soft_loss = F.kl_div(soft_student, soft_teacher, reduction="batchmean") * (T ** 2)
+                soft_loss = F.kl_div(soft_student, soft_teacher, reduction="batchmean") * (T**2)
 
                 # Combined loss
                 loss = config.alpha * hard_loss + (1 - config.alpha) * soft_loss
@@ -394,7 +403,10 @@ class KnowledgeDistiller:
                     avg_student = running_student_loss / max(1, step)
                     logger.info(
                         "Distill step %d/%d | soft_loss=%.4f | hard_loss=%.4f",
-                        step, config.max_steps, avg_distill, avg_student
+                        step,
+                        config.max_steps,
+                        avg_distill,
+                        avg_student,
                     )
 
         # Save student

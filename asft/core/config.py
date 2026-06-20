@@ -152,7 +152,8 @@ class ASFTConfig(BaseSettings):
 
     def ensure_dirs(self) -> None:
         dirs = [
-            self.data_dir, self.log_dir,
+            self.data_dir,
+            self.log_dir,
             self.memory.chroma_persist_dir,
             self.sparse.delta_output_dir,
             self.dataset.compressed_output_dir,
@@ -166,12 +167,14 @@ class ASFTConfig(BaseSettings):
     @classmethod
     def from_yaml(cls, path: str | Path) -> ASFTConfig:
         import yaml
+
         with open(path) as f:
             data = yaml.safe_load(f)
         return cls(**data)
 
     def to_yaml(self, path: str | Path) -> None:
         import yaml
+
         with open(path, "w") as f:
             yaml.dump(self.model_dump(), f, default_flow_style=False, sort_keys=False)
 

@@ -8,6 +8,7 @@ Middleware stack (applied in order, outermost first):
 
 All middleware adds X-Request-ID to responses for distributed tracing.
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,7 +43,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self,
         app,
         requests_per_minute: int = 60,
-        burst_limit: int = 20,   # max requests in a 10-second window
+        burst_limit: int = 20,  # max requests in a 10-second window
     ) -> None:
         super().__init__(app)
         self._rpm = requests_per_minute

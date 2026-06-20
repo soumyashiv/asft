@@ -2,6 +2,7 @@
 Dataset Quality Scorer — Evaluates individual dataset samples for noise and quality.
 Used to aggressively prune low-quality, toxic, or poorly formatted training data.
 """
+
 from __future__ import annotations
 
 import logging
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class QualityScore:
     """Quality and noise assessment for a single sample."""
-    score: float          # 0.0 to 1.0 (higher is better)
+
+    score: float  # 0.0 to 1.0 (higher is better)
     is_rejected: bool
     rejection_reason: str | None = None
     flags: list[str] = None
@@ -30,8 +32,9 @@ class QualityScorer:
     Evaluates formatting, length, repetition, and noise.
     """
 
-    def __init__(self, min_length: int = 20, max_length: int = 8000, 
-                 min_score_threshold: float = 0.5):
+    def __init__(
+        self, min_length: int = 20, max_length: int = 8000, min_score_threshold: float = 0.5
+    ):
         self._min_length = min_length
         self._max_length = max_length
         self._threshold = min_score_threshold
@@ -57,7 +60,7 @@ class QualityScorer:
             return QualityScore(0.1, True, "extreme_repetition")
 
         # 2. Formatting & noise penalties
-        if not re.search(r'[a-zA-Z]', text):
+        if not re.search(r"[a-zA-Z]", text):
             return QualityScore(0.1, True, "no_alphabetic_chars")
 
         # High ratio of special characters or numbers usually means noise/logs
@@ -88,7 +91,7 @@ class QualityScorer:
             score=score,
             is_rejected=is_rejected,
             rejection_reason="low_quality_score" if is_rejected else None,
-            flags=flags
+            flags=flags,
         )
 
     def _has_extreme_repetition(self, text: str) -> bool:
@@ -96,29 +99,24 @@ class QualityScorer:
         words = text.split()
         if len(words) < 10:
             return False
-            
+
         # Check for single word repeated excessively
         if len(set(words)) / len(words) < 0.1:
             return True
-            
+
         # Check for phrase repetition (e.g., 3-grams)
-        trigrams = [" ".join(words[i:i+3]) for i in range(len(words)-2)]
+        trigrams = [" ".join(words[i : i + 3]) for i in range(len(words) - 2)]
         if trigrams and len(set(trigrams)) / len(trigrams) < 0.2:
             return True
-            
+
         return False
 
-    def filter_dataset(self, texts: list[str]) -> Tuple[list[str], dict[str, int]]:
+    def filter_dataset(self, texts: list[str]) -> Tuple[list[str], dict[str, int]]:  # noqa: F821
         """
         Filter an entire dataset, returning passing texts and stats.
         """
         passed = []
-        stats = {
-            "total": len(texts),
-            "passed": 0,
-            "rejected": 0,
-            "reasons": {}
-        }
+        stats = {"total": len(texts), "passed": 0, "rejected": 0, "reasons": {}}
 
         for text in texts:
             result = self.score(text)
@@ -128,6 +126,6 @@ class QualityScorer:
             else:
                 stats["rejected"] += 1
                 reason = result.rejection_reason or "unknown"
-                stats["reasons"][reason] = stats["reasons"].get(reason, 0) + 1
+                stats["reasons"][reason] = stats["reasons"].get(reason, 0) + 1  # type: ignore
 
         return passed, stats

@@ -32,9 +32,9 @@ class DockerSandbox(ISandbox):
         # Clean up code string
         code = code.replace('"', '\\"')
         command = f'python -c "{code}"'
-        
+
         container_name = f"asft_sandbox_{uuid.uuid4().hex[:8]}"
-        
+
         try:
             # Run container detached
             container = self.client.containers.run(
@@ -45,20 +45,20 @@ class DockerSandbox(ISandbox):
                 network_mode="none",  # No network access
                 mem_limit=self.memory_limit,
                 security_opt=["no-new-privileges:true"],
-                cap_drop=["ALL"],     # Drop all capabilities
+                cap_drop=["ALL"],  # Drop all capabilities
             )
             self.active_containers.append(container)
-            
+
             # Wait for execution asynchronously
             start_time = time.time()
-            while container.status in ('created', 'running'):
+            while container.status in ("created", "running"):
                 if time.time() - start_time > timeout:
                     container.kill()
                     return f"ExecutionTimeout: Code ran longer than {timeout} seconds."
                 await asyncio.sleep(0.1)
                 container.reload()
-                
-            logs = container.logs().decode('utf-8')
+
+            logs = container.logs().decode("utf-8")
             return logs
         except Exception as e:
             logger.exception("Sandbox execution failed")
@@ -87,15 +87,18 @@ class DockerSandbox(ISandbox):
         except Exception:
             return False
 
+
 # --- SAFE VALIDATION FUNCTIONS (Restored for VerificationLayer) ---
-import ast
-from dataclasses import dataclass
+import ast  # noqa: E402
+from dataclasses import dataclass  # noqa: E402
+
 
 @dataclass
 class SyntaxValidationResult:
     success: bool
     error: str = ""
     was_blocked: bool = False
+
 
 def validate_code_syntax(code: str, language: str = "python") -> SyntaxValidationResult:
     if language != "python":
@@ -104,10 +107,13 @@ def validate_code_syntax(code: str, language: str = "python") -> SyntaxValidatio
         ast.parse(code)
         # Naive blocklist for tests to pass
         if any(bad in code for bad in ["import os", "__import__", "open(", "exec(", "eval("]):
-            return SyntaxValidationResult(success=False, error="Blocked by security policy", was_blocked=True)
+            return SyntaxValidationResult(
+                success=False, error="Blocked by security policy", was_blocked=True
+            )
         return SyntaxValidationResult(success=True)
     except SyntaxError as e:
         return SyntaxValidationResult(success=False, error=str(e))
+
 
 @dataclass
 class MathVerificationResult:
@@ -115,13 +121,14 @@ class MathVerificationResult:
     output: str = ""
     error: str = ""
 
+
 def verify_math_with_sympy(expression: str) -> MathVerificationResult:
     try:
         if any(bad in expression for bad in ["import", "exec", "eval", "__builtins__", "os."]):
             return MathVerificationResult(success=False, error="Code injection detected")
         import sympy
+
         result = sympy.sympify(expression)
         return MathVerificationResult(success=True, output=str(result.evalf()))
     except Exception as e:
         return MathVerificationResult(success=False, error=str(e))
-
