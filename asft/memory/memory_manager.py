@@ -177,15 +177,19 @@ class MemoryManager:
     ) -> int:
         """Record a task event to episodic memory."""
         return self.episodic.add_episode(  # type: ignore
-            Episode(  # type: ignore
-                event_type=event_type,
-                context=context,
-                outcome=outcome,
-                success=success,
+            Episode(
+                id=str(uuid.uuid4()),
+                content=f"{event_type}: {context} -> {outcome}",
+                task=task_id or "unknown",
+                source="memory_manager",
+                tags=[event_type, "event"],
                 confidence=confidence,
-                duration_seconds=duration,
-                task_id=task_id,
-                session_id=self._session_id,
+                metadata={
+                    "event_type": event_type,
+                    "success": success,
+                    "duration_seconds": duration,
+                    "session_id": self._session_id,
+                },
             )
         )
 
