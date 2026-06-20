@@ -81,6 +81,41 @@ decision = AutoOptimizer().decide(
 print(f"Action: {decision.action} | Reasoning: {decision.reasoning}")
 ```
 
+### 2. Dataset Compression
+If the decision engine recommends training, ASFT can automatically compress your dataset to save compute time by extracting only the most semantically unique samples.
+
+```python
+from asft.dataset.streaming_compressor import StreamingCompressor
+
+compressor = StreamingCompressor()
+# Compress thousands of records into just the critical, highly unique semantic samples
+compressed_data, report = compressor.compress_stream(
+    dataset_path="your_dataset.jsonl",
+    dataset_format="json",
+    text_field="instruction"
+)
+
+print(f"Original size: {report['original_count']} -> New size: {report['final_count']}")
+print(f"Data Reduction: {report['total_reduction'] * 100:.2f}%")
+```
+
+### 3. Estimating Training Costs
+Before spinning up expensive cloud GPUs, predict exactly how much the fine-tuning job will cost.
+
+```python
+from asft.optimizer.cost_estimator import CostEstimator
+
+estimator = CostEstimator()
+projection = estimator.estimate(
+    model_name="Qwen/Qwen2-7B",
+    dataset_size=5_000,
+    method="qlora"
+)
+
+print(f"Estimated Cost: ${projection.cost_usd:.2f}")
+print(f"GPU Hours Required: {projection.gpu_hours:.2f}")
+```
+
 ## 🛡️ Architecture & Security
 
 ASFT is designed for robust enterprise deployment:
