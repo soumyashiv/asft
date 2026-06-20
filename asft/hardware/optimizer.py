@@ -180,9 +180,7 @@ class BatchScheduler:
                         torch.cuda.empty_cache()
                     new_bs = self.on_oom()
                     if new_bs < self._min:
-                        raise RuntimeError(
-                            "Batch size cannot be reduced further — OOM"
-                        ) from e
+                        raise RuntimeError("Batch size cannot be reduced further — OOM") from e
                     logger.info("Retrying with batch_size=%d", new_bs)
                 else:
                     raise
