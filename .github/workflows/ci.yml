@@ -41,6 +41,8 @@ jobs:
         pip install -e .[dev]
     - name: Test with pytest
       run: |
+        pytest tests/ -v -m "not gpu" > pytest_log.txt 2>&1 || true
+        cat pytest_log.txt >> $GITHUB_STEP_SUMMARY
         pytest tests/ -v -m "not gpu"
 
   build-docker:
