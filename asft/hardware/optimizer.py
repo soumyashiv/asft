@@ -6,7 +6,7 @@ based on the current hardware profile. No manual tuning required.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +26,13 @@ class Quantizer:
         model_name: str,
         precision: str = "bf16",
         quantization: str = "none",
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         trust_remote_code: bool = True,
         device_map: str = "auto",
     ):
         """Load a model with the specified precision and quantization."""
-        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
         import torch
+        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
         bnb_config = None
         dtype = torch.float32
@@ -58,7 +58,7 @@ class Quantizer:
         else:
             logger.info("Loading %s with precision=%s", model_name, precision)
 
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "device_map": device_map,
             "trust_remote_code": trust_remote_code,
         }
@@ -98,11 +98,11 @@ class Offloader:
     Uses HuggingFace Accelerate for transparent device placement.
     """
 
-    def apply_cpu_offload(self, model, max_gpu_memory_gb: Optional[float] = None) -> Any:
+    def apply_cpu_offload(self, model, max_gpu_memory_gb: float | None = None) -> Any:
         """Apply CPU offloading to a model."""
         try:
-            from accelerate import dispatch_model, infer_auto_device_map
             import torch
+            from accelerate import dispatch_model, infer_auto_device_map
 
             if max_gpu_memory_gb:
                 memory_map = {"cpu": "30GiB"}

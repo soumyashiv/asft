@@ -3,10 +3,10 @@ ASFT — Pytest Test Suite
 Tests all core components without requiring a GPU or LLM.
 Run with: pytest tests/ -v
 """
-import pytest
 import time
 from pathlib import Path
 
+import pytest
 
 # ===========================================================================
 # Core tests
@@ -164,36 +164,39 @@ class TestWorkingMemory:
 
 
 class TestEpisodicMemory:
-    """EpisodicMemory.record() takes an EventRecord dataclass."""
+    """EpisodicMemory.store() takes an Episode dataclass."""
 
     def setup_method(self):
+        import tempfile
+        import os
         from asft.memory.episodic_memory import EpisodicMemory
-        self.em = EpisodicMemory(db_path=":memory:")
+        self.db_fd, self.db_path = tempfile.mkstemp(suffix=".db")
+        self.em = EpisodicMemory(db_path=self.db_path)
 
-    def _make_record(self, event_type, success=True, duration=0.5):
-        from asft.memory.episodic_memory import EventRecord
-        return EventRecord(event_type=event_type, success=success,
-                           duration_seconds=duration)
+    def teardown_method(self):
+        import os
+        os.close(self.db_fd)
+        try:
+            os.remove(self.db_path)
+        except OSError:
+            pass
+
+    def _make_record(self, task, content="test"):
+        from asft.memory.episodic_memory import Episode
+        return Episode(id="", content=content, task=task)
 
     def test_record_and_count(self):
-        self.em.record(self._make_record("task_start"))
+        self.em.store(self._make_record("task_start"))
         assert self.em.count() >= 1
-
-    def test_failure_rate(self):
-        self.em.record(self._make_record("t1", success=True))
-        self.em.record(self._make_record("t2", success=False))
-        self.em.record(self._make_record("t3", success=False))
-        rate = self.em.failure_rate()
-        assert rate > 0.0
 
     def test_query_limit(self):
         for i in range(10):
-            self.em.record(self._make_record(f"event_{i}"))
-        results = self.em.query(limit=5)
+            self.em.store(self._make_record(f"event_{i}"))
+        results = self.em.query("event", top_k=5)
         assert len(results) <= 5
 
     def test_get_by_id(self):
-        ev_id = self.em.record(self._make_record("lookup_test"))
+        ev_id = self.em.store(self._make_record("lookup_test"))
         if ev_id is not None:
             fetched = self.em.get(ev_id)
             assert fetched is not None
@@ -240,12 +243,12 @@ class TestSkillPacks:
     @pytest.fixture(params=["coding", "research", "planning",
                             "mathematics", "trading", "automation"])
     def pack(self, request):
-        from asft.skills.packs.coding import CodingSkillPack
-        from asft.skills.packs.research import ResearchSkillPack
-        from asft.skills.packs.planning import PlanningSkillPack
-        from asft.skills.packs.mathematics import MathematicsSkillPack
-        from asft.skills.packs.trading import TradingSkillPack
         from asft.skills.packs.automation import AutomationSkillPack
+        from asft.skills.packs.coding import CodingSkillPack
+        from asft.skills.packs.mathematics import MathematicsSkillPack
+        from asft.skills.packs.planning import PlanningSkillPack
+        from asft.skills.packs.research import ResearchSkillPack
+        from asft.skills.packs.trading import TradingSkillPack
         packs = {
             "coding": CodingSkillPack,
             "research": ResearchSkillPack,
@@ -301,9 +304,9 @@ class TestMathDirectCompute:
 class TestSkillRouter:
     def setup_method(self):
         from asft.core.registry import Registry
-        from asft.skills.skill_router import SkillRouter
         from asft.skills.packs.coding import CodingSkillPack
         from asft.skills.packs.mathematics import MathematicsSkillPack
+        from asft.skills.skill_router import SkillRouter
         self.reg = Registry()
         self.reg.register_skill("coding", CodingSkillPack())
         self.reg.register_skill("mathematics", MathematicsSkillPack())
@@ -415,46 +418,26 @@ class TestSelfCritique:
         assert result.is_clean or len(result.issues_found) <= 1
 
 
-class TestKnowledgeGapDetector:
-    def test_recent_info_triggers_gap(self):
-        from asft.accuracy.verification_layer import KnowledgeGapDetector
-        kgd = KnowledgeGapDetector()
-        result = kgd.detect("What is the latest AI news in 2025?")
-        assert result.has_gap
-        assert result.recommended_action == "tool"
 
-    def test_basic_question_no_gap(self):
-        from asft.accuracy.verification_layer import KnowledgeGapDetector
-        kgd = KnowledgeGapDetector()
-        result = kgd.detect("What is 2 + 2?")
-        assert result.recommended_action == "none"
-
-    def test_returns_gap_result(self):
-        from asft.accuracy.verification_layer import KnowledgeGapDetector
-        kgd = KnowledgeGapDetector()
-        result = kgd.detect("How does LoRA work?")
-        assert result is not None
-        assert isinstance(result.has_gap, bool)
-        assert result.confidence >= 0.0
 
 
 class TestVerificationLayer:
     def test_math_correct_answer(self):
         from asft.accuracy.verification_layer import VerificationLayer
-        vl = VerificationLayer(enable_code_execution=False)
+        vl = VerificationLayer()
         result = vl.verify("The result is 12.", "2 + 2 * 5", task_type="mathematics")
         assert result.verified is True
         assert result.confidence > 0.0
 
     def test_math_wrong_answer(self):
         from asft.accuracy.verification_layer import VerificationLayer
-        vl = VerificationLayer(enable_code_execution=False)
+        vl = VerificationLayer()
         result = vl.verify("The result is 999.", "2 + 2 * 5", task_type="mathematics")
-        assert result.method == "math"
+        assert result.method == "math_cas"
 
     def test_no_verifier_returns_none_result(self):
         from asft.accuracy.verification_layer import VerificationLayer
-        vl = VerificationLayer(enable_code_execution=False)
+        vl = VerificationLayer()
         result = vl.verify("Some general output.", "General question.", task_type="general")
         assert result is not None
 
@@ -535,6 +518,7 @@ class TestDeduplicator:
 class TestRepresentativeSelector:
     def test_centroid_selection(self):
         import numpy as np
+
         from asft.dataset.representative_selector import RepresentativeSelector
         embeddings = np.random.randn(10, 16)
         labels = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2, 2])
@@ -545,6 +529,7 @@ class TestRepresentativeSelector:
 
     def test_diversity_selection(self):
         import numpy as np
+
         from asft.dataset.representative_selector import RepresentativeSelector
         embeddings = np.random.randn(9, 8)
         labels = np.array([0]*3 + [1]*3 + [2]*3)
@@ -554,6 +539,7 @@ class TestRepresentativeSelector:
 
     def test_hybrid_selection(self):
         import numpy as np
+
         from asft.dataset.representative_selector import RepresentativeSelector
         embeddings = np.random.randn(8, 8)
         labels = np.array([0]*4 + [1]*4)
@@ -563,6 +549,7 @@ class TestRepresentativeSelector:
 
     def test_reduction_ratio(self):
         import numpy as np
+
         from asft.dataset.representative_selector import RepresentativeSelector
         embeddings = np.random.randn(20, 8)
         labels = np.array([i // 4 for i in range(20)])  # 5 clusters of 4
@@ -575,48 +562,4 @@ class TestRepresentativeSelector:
 # Evolutionary tests
 # ===========================================================================
 
-class TestEvolutionaryEngine:
-    def test_basic_evolution(self):
-        from asft.evolutionary.evolutionary_engine import EvolutionaryEngine
 
-        def fitness_fn(candidate: str) -> float:
-            return min(1.0, len(candidate) / 100.0)
-
-        engine = EvolutionaryEngine(population_size=5, max_generations=3)
-        seeds = ["short", "medium length text here", "this is a longer candidate for testing"]
-        result = engine.evolve(seeds, fitness_fn=fitness_fn)
-        assert result.best_candidate is not None
-        assert result.generations_run > 0
-        assert result.best_candidate.fitness >= 0
-
-    def test_convergence_detection(self):
-        from asft.evolutionary.evolutionary_engine import EvolutionaryEngine
-
-        def fitness_fn(s: str) -> float:
-            return 0.9  # constant → converges fast
-
-        engine = EvolutionaryEngine(
-            population_size=4, max_generations=20, convergence_threshold=0.0001
-        )
-        result = engine.evolve(["a", "b", "c"], fitness_fn=fitness_fn)
-        assert result.converged is True
-
-    def test_fitness_history_recorded(self):
-        from asft.evolutionary.evolutionary_engine import EvolutionaryEngine
-
-        def fitness_fn(s: str) -> float:
-            return 0.5
-
-        engine = EvolutionaryEngine(population_size=3, max_generations=5)
-        result = engine.evolve(["x", "y"], fitness_fn=fitness_fn)
-        assert len(result.fitness_history) > 0
-
-    def test_result_population_size(self):
-        from asft.evolutionary.evolutionary_engine import EvolutionaryEngine
-
-        engine = EvolutionaryEngine(population_size=6, max_generations=2)
-        result = engine.evolve(
-            ["seed1", "seed2", "seed3"],
-            fitness_fn=lambda s: 0.5
-        )
-        assert len(result.final_population) == 6

@@ -7,9 +7,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Set
 
-import torch
 import torch.nn as nn
 
 logger = logging.getLogger(__name__)
@@ -21,8 +19,8 @@ class SparseSelectionMask:
     Defines which parameters should be trained (True) vs frozen (False).
     Also tracks sparsity metrics.
     """
-    trainable_params: Set[str] = field(default_factory=set)
-    frozen_params: Set[str] = field(default_factory=set)
+    trainable_params: set[str] = field(default_factory=set)
+    frozen_params: set[str] = field(default_factory=set)
     sparsity_ratio: float = 0.95
     method: str = "activation"
     total_params: int = 0
@@ -113,8 +111,8 @@ class NeuronSelector:
     def _select_by_activation(self, report, ratio: float) -> SparseSelectionMask:
         """Use activation report's top_layers to select trainable params."""
         top_layers = set(report.top_layers)
-        trainable: Set[str] = set()
-        frozen: Set[str] = set()
+        trainable: set[str] = set()
+        frozen: set[str] = set()
 
         for name, _ in self._model.named_parameters():
             # Check if this param belongs to a top layer
@@ -128,7 +126,7 @@ class NeuronSelector:
 
     def _select_by_magnitude(self, ratio: float) -> SparseSelectionMask:
         """Select parameters with highest absolute weight magnitudes."""
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
         for name, param in self._model.named_parameters():
             if param.requires_grad:
                 scores[name] = float(param.data.abs().mean())
@@ -138,7 +136,7 @@ class NeuronSelector:
     def _select_by_gradient(self, dataloader, ratio: float) -> SparseSelectionMask:
         """Run a forward-backward pass to collect gradient norms."""
         self._model.train()
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
 
         for i, batch in enumerate(dataloader):
             if i >= 3:
@@ -166,7 +164,7 @@ class NeuronSelector:
     def _select_by_fisher(self, dataloader, ratio: float) -> SparseSelectionMask:
         """Approximate Fisher Information using squared gradients."""
         self._model.train()
-        fisher: Dict[str, float] = {
+        fisher: dict[str, float] = {
             name: 0.0 for name, p in self._model.named_parameters() if p.requires_grad
         }
         n_samples = 0
@@ -196,7 +194,7 @@ class NeuronSelector:
 
         return self._threshold_select(fisher, ratio)
 
-    def _threshold_select(self, scores: Dict[str, float], ratio: float) -> SparseSelectionMask:
+    def _threshold_select(self, scores: dict[str, float], ratio: float) -> SparseSelectionMask:
         """Select top (1-ratio) fraction of params by score."""
         if not scores:
             return SparseSelectionMask()
@@ -207,7 +205,7 @@ class NeuronSelector:
         return SparseSelectionMask(trainable_params=trainable, frozen_params=frozen)
 
     def _count_params(self, mask: SparseSelectionMask) -> None:
-        param_map: Dict[str, int] = {
+        param_map: dict[str, int] = {
             name: p.numel() for name, p in self._model.named_parameters()
         }
         mask.total_params = sum(param_map.values())

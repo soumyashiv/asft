@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -34,9 +34,9 @@ class LayerActivationStats:
 
 @dataclass
 class ActivationReport:
-    layer_stats: Dict[str, LayerActivationStats] = field(default_factory=dict)
-    ranked_layers: List[Tuple[str, float]] = field(default_factory=list)
-    top_layers: List[str] = field(default_factory=list)
+    layer_stats: dict[str, LayerActivationStats] = field(default_factory=dict)
+    ranked_layers: list[tuple[str, float]] = field(default_factory=list)
+    top_layers: list[str] = field(default_factory=list)
 
     def summary(self, top_n: int = 10) -> str:
         lines = [f"=== Activation Analysis (top {top_n} layers) ==="]
@@ -56,10 +56,10 @@ class ActivationAnalyzer:
     for sparse training.
     """
 
-    def __init__(self, model: nn.Module, target_module_types: Optional[Tuple] = None):
+    def __init__(self, model: nn.Module, target_module_types: tuple | None = None):
         self._model = model
-        self._hooks: List[torch.utils.hooks.RemovableHook] = []
-        self._stats: Dict[str, LayerActivationStats] = defaultdict(
+        self._hooks: list[torch.utils.hooks.RemovableHook] = []
+        self._stats: dict[str, LayerActivationStats] = defaultdict(
             lambda: LayerActivationStats(layer_name="")
         )
         self._target_types = target_module_types or (nn.Linear, nn.LayerNorm)

@@ -1,8 +1,8 @@
-from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Integer, String, Table, Boolean
+from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
 
 class Base(DeclarativeBase):
     pass
@@ -41,8 +41,8 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="queued", index=True)
     created_at: Mapped[float] = mapped_column(Float, nullable=False)
     updated_at: Mapped[float] = mapped_column(Float, nullable=False)
-    payload: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
-    result: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    result: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=True)
     error: Mapped[str] = mapped_column(String, nullable=True)
 
 class BenchmarkResult(Base):
@@ -51,7 +51,7 @@ class BenchmarkResult(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     claim_type: Mapped[str] = mapped_column(String, index=True) # e.g., 'accuracy', 'resources'
     model_name: Mapped[str] = mapped_column(String)
-    metrics: Mapped[Dict[str, Any]] = mapped_column(JSON)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
     timestamp: Mapped[float] = mapped_column(Float)
 
 class RoutingHistory(Base):

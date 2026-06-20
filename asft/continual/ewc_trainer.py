@@ -64,9 +64,7 @@ HYPERPARAMETER GUIDANCE:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, Iterator, Optional
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -105,15 +103,15 @@ class EWCRegularizer:
     def __init__(self, model: nn.Module, config: EWCConfig):
         self._model = model
         self._config = config
-        self._fisher: Dict[str, torch.Tensor] = {}
-        self._anchors: Dict[str, torch.Tensor] = {}
+        self._fisher: dict[str, torch.Tensor] = {}
+        self._anchors: dict[str, torch.Tensor] = {}
         self._task_count = 0
 
     def compute_fisher(
         self,
         dataloader,
         task_name: str = "task_0",
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Estimate the Fisher Information diagonal for the current task.
         Must be called AFTER training on Task A is complete.
@@ -132,7 +130,7 @@ class EWCRegularizer:
         self._model.eval()
 
         # Initialize Fisher accumulator
-        fisher_accum: Dict[str, torch.Tensor] = {
+        fisher_accum: dict[str, torch.Tensor] = {
             name: torch.zeros_like(param)
             for name, param in self._model.named_parameters()
             if param.requires_grad

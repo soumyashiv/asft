@@ -9,7 +9,6 @@ import logging
 import platform
 import subprocess
 from dataclasses import dataclass, field
-from typing import Optional
 
 import psutil
 
@@ -29,7 +28,7 @@ class GPUInfo:
     name: str
     vram_total_gb: float
     vram_free_gb: float
-    compute_capability: Optional[str] = None
+    compute_capability: str | None = None
     is_cuda: bool = True
 
     @property

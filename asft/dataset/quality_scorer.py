@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +16,8 @@ class QualityScore:
     """Quality and noise assessment for a single sample."""
     score: float          # 0.0 to 1.0 (higher is better)
     is_rejected: bool
-    rejection_reason: Optional[str] = None
-    flags: List[str] = None
+    rejection_reason: str | None = None
+    flags: list[str] = None
 
     def __post_init__(self):
         if self.flags is None:
@@ -109,7 +108,7 @@ class QualityScorer:
             
         return False
 
-    def filter_dataset(self, texts: List[str]) -> Tuple[List[str], Dict[str, int]]:
+    def filter_dataset(self, texts: list[str]) -> Tuple[list[str], dict[str, int]]:
         """
         Filter an entire dataset, returning passing texts and stats.
         """

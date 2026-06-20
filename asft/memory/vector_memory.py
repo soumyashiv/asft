@@ -5,11 +5,8 @@ Switch backends via config alone with no changes to core architecture.
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +15,8 @@ logger = logging.getLogger(__name__)
 class VectorDocument:
     id: str
     text: str
-    embedding: Optional[List[float]] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    embedding: list[float] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -35,7 +32,7 @@ from asft.core.interfaces import IMemoryStore, MemoryQueryResult
 # ChromaDB is no longer the primary. Kept for backwards compatibility.
 class ChromaDBBackend(IMemoryStore):
     def __init__(self, persist_dir: str, collection_name: str,
-                 host: Optional[str] = None, port: int = 8000):
+                 host: str | None = None, port: int = 8000):
         import chromadb
         if host:
             self._client = chromadb.HttpClient(host=host, port=port)
@@ -47,7 +44,7 @@ class ChromaDBBackend(IMemoryStore):
         )
         logger.info("ChromaDB backend: collection=%s", collection_name)
 
-    async def add(self, content: str, metadata: Optional[Dict] = None, vector: Optional[List[float]] = None) -> str:
+    async def add(self, content: str, metadata: dict | None = None, vector: list[float] | None = None) -> str:
         import uuid
         doc_id = str(uuid.uuid4())
         self._collection.upsert(
@@ -58,7 +55,7 @@ class ChromaDBBackend(IMemoryStore):
         )
         return doc_id
 
-    async def update(self, item_id: str, content: str, metadata: Optional[Dict] = None, vector: Optional[List[float]] = None) -> bool:
+    async def update(self, item_id: str, content: str, metadata: dict | None = None, vector: list[float] | None = None) -> bool:
         self._collection.upsert(
             ids=[item_id],
             documents=[content],
@@ -71,7 +68,7 @@ class ChromaDBBackend(IMemoryStore):
         self._collection.delete(ids=[item_id])
         return True
 
-    async def search(self, query_vector: List[float], top_k: int = 5) -> List[MemoryQueryResult]:
+    async def search(self, query_vector: list[float], top_k: int = 5) -> list[MemoryQueryResult]:
         results = self._collection.query(query_embeddings=[query_vector], n_results=top_k)
         out = []
         for i, doc_id in enumerate(results["ids"][0]):
@@ -86,7 +83,7 @@ class ChromaDBBackend(IMemoryStore):
             ))
         return out
 
-    async def batch_insert(self, contents: List[str], metadatas: Optional[List[Dict]] = None, vectors: Optional[List[List[float]]] = None) -> List[str]:
+    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None, vectors: list[list[float]] | None = None) -> list[str]:
         import uuid
         ids = [str(uuid.uuid4()) for _ in contents]
         self._collection.upsert(
@@ -118,11 +115,11 @@ class EmbeddingModel:
         self.dim = self._model.get_sentence_embedding_dimension()
         logger.info("Embedding model: %s (dim=%d, device=%s)", model_name, self.dim, device)
 
-    def encode(self, texts: List[str]) -> List[List[float]]:
+    def encode(self, texts: list[str]) -> list[list[float]]:
         vecs = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
         return vecs.tolist()
 
-    def encode_one(self, text: str) -> List[float]:
+    def encode_one(self, text: str) -> list[float]:
         return self.encode([text])[0]
 
 
@@ -159,11 +156,11 @@ class VectorMemory:
 
         logger.info("VectorMemory: backend=%s", backend)
 
-    async def add_text(self, doc_id: str, text: str, metadata: Optional[Dict] = None) -> None:
+    async def add_text(self, doc_id: str, text: str, metadata: dict | None = None) -> None:
         embedding = self._embedder.encode_one(text)
         await self._backend.add(content=text, metadata=metadata, vector=embedding)
 
-    async def add_texts(self, texts: List[Tuple[str, str]], metadata: Optional[List[Dict]] = None) -> None:
+    async def add_texts(self, texts: list[tuple[str, str]], metadata: list[dict] | None = None) -> None:
         """Add multiple (id, text) pairs."""
         all_texts = [t for _, t in texts]
         embeddings = self._embedder.encode(all_texts)
@@ -174,20 +171,20 @@ class VectorMemory:
         )
 
     async def search(self, query: str, top_k: int = 10,
-               filter: Optional[Dict] = None) -> List[MemoryQueryResult]:
+               filter: dict | None = None) -> list[MemoryQueryResult]:
         query_emb = self._embedder.encode_one(query)
         # Note: IMemoryStore interface doesn't natively take filter.
         # But MemoryQueryResult has all the metadata.
         return await self._backend.search(query_vector=query_emb, top_k=top_k)
 
-    async def delete(self, ids: List[str]) -> None:
+    async def delete(self, ids: list[str]) -> None:
         for item_id in ids:
             await self._backend.delete(item_id)
 
     @classmethod
-    def from_config(cls, cfg) -> "VectorMemory":
+    def from_config(cls, cfg) -> VectorMemory:
         """Build VectorMemory from MemoryConfig."""
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         backend = cfg.vector_backend
         if backend == "chromadb":
             kwargs = {

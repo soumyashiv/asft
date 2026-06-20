@@ -18,7 +18,7 @@ __author__ = "ASFT Contributors"
 __license__ = "MIT"
 
 from asft.core.config import ASFTConfig
-from asft.core.hardware_profiler import detect_hardware, HardwareProfile
+from asft.core.hardware_profiler import HardwareProfile, detect_hardware
 from asft.core.registry import Registry
 
 __all__ = [

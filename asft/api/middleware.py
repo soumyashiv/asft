@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from typing import Callable, Dict, Tuple
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -48,7 +48,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._rpm = requests_per_minute
         self._burst = burst_limit
         # {ip: [(timestamp, count), ...]}
-        self._windows: Dict[str, list] = defaultdict(list)
+        self._windows: dict[str, list] = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         ip = request.client.host if request.client else "unknown"

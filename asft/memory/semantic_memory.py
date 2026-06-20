@@ -9,7 +9,7 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import Column, Float, Integer, String, Text, create_engine, func
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
@@ -43,7 +43,7 @@ class FactRecord:
     object: str
     source: str = "unknown"
     confidence: float = 1.0
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 class SemanticMemory:
@@ -95,7 +95,7 @@ class SemanticMemory:
         self._maybe_prune()
         return fact_id
 
-    def query_by_subject(self, subject: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def query_by_subject(self, subject: str, limit: int = 50) -> list[dict[str, Any]]:
         with self._Session() as session:
             facts = (
                 session.query(Fact)
@@ -107,7 +107,7 @@ class SemanticMemory:
             self._touch(session, facts)
             return [self._to_dict(f) for f in facts]
 
-    def query_by_predicate(self, predicate: str, limit: int = 50) -> List[Dict[str, Any]]:
+    def query_by_predicate(self, predicate: str, limit: int = 50) -> list[dict[str, Any]]:
         with self._Session() as session:
             facts = (
                 session.query(Fact)
@@ -119,7 +119,7 @@ class SemanticMemory:
             self._touch(session, facts)
             return [self._to_dict(f) for f in facts]
 
-    def semantic_search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+    def semantic_search(self, query: str, top_k: int = 10) -> list[dict[str, Any]]:
         """Search using vector similarity if vector_memory is available."""
         if not self._vector_memory:
             # Fallback to keyword search
@@ -145,14 +145,14 @@ class SemanticMemory:
                 return True
         return False
 
-    def _touch(self, session: Session, facts: List[Fact]) -> None:
+    def _touch(self, session: Session, facts: list[Fact]) -> None:
         now = time.time()
         for f in facts:
             f.access_count += 1
             f.last_accessed = now
         session.commit()
 
-    def _to_dict(self, f: Fact) -> Dict[str, Any]:
+    def _to_dict(self, f: Fact) -> dict[str, Any]:
         return {
             "id": f.id,
             "subject": f.subject,

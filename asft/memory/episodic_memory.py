@@ -36,7 +36,7 @@ import uuid
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +51,12 @@ class Episode:
     content: str
     task: str = ""
     source: str = "experience"
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     confidence: float = 1.0
     timestamp: float = field(default_factory=time.time)
     access_count: int = 0
     last_accessed: float = field(default_factory=time.time)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class EpisodicMemory:
@@ -169,7 +169,7 @@ class EpisodicMemory:
         self._maybe_prune()
         return ep_id
 
-    def query(self, query_text: str, top_k: int = 10, min_confidence: float = 0.0) -> List[Episode]:
+    def query(self, query_text: str, top_k: int = 10, min_confidence: float = 0.0) -> list[Episode]:
         """
         Full-text search using FTS5.
 
@@ -226,7 +226,7 @@ class EpisodicMemory:
 
         return episodes
 
-    def get(self, episode_id: str) -> Optional[Episode]:
+    def get(self, episode_id: str) -> Episode | None:
         """Retrieve a specific episode by ID."""
         with self._connect() as conn:
             row = conn.execute(

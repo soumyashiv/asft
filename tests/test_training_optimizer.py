@@ -8,11 +8,7 @@ Tests for the Training Acceleration subsystems:
 """
 from __future__ import annotations
 
-import math
-from unittest.mock import MagicMock, patch
-
 import pytest
-
 
 # ============================================================================
 # CostEstimator Tests
@@ -247,7 +243,6 @@ class TestEWCRegularizer:
 
     def _make_tiny_model(self):
         """Create a tiny 2-layer linear model for testing."""
-        import torch
         import torch.nn as nn
         model = nn.Sequential(nn.Linear(10, 5), nn.ReLU(), nn.Linear(5, 3))
         return model
@@ -255,7 +250,6 @@ class TestEWCRegularizer:
     def _make_dataloader(self, model):
         """Create a minimal dataloader."""
         import torch
-        from torch.utils.data import DataLoader, TensorDataset
         x = torch.randn(20, 10)
         labels = torch.zeros(20, dtype=torch.long)
         # Wrap as HF-style dict batches
@@ -267,8 +261,7 @@ class TestEWCRegularizer:
         return DictDataset()
 
     def test_ewc_loss_zero_before_compute(self):
-        import torch
-        from asft.continual.ewc_trainer import EWCRegularizer, EWCConfig
+        from asft.continual.ewc_trainer import EWCConfig, EWCRegularizer
         model = self._make_tiny_model()
         ewc = EWCRegularizer(model, EWCConfig(ewc_lambda=1000.0))
         assert not ewc.has_fisher()
@@ -277,7 +270,8 @@ class TestEWCRegularizer:
 
     def test_ewc_loss_positive_after_weight_change(self):
         import torch
-        from asft.continual.ewc_trainer import EWCRegularizer, EWCConfig
+
+        from asft.continual.ewc_trainer import EWCConfig, EWCRegularizer
 
         model = self._make_tiny_model()
         ewc = EWCRegularizer(model, EWCConfig(ewc_lambda=1000.0))
@@ -308,7 +302,8 @@ class TestEWCRegularizer:
 
     def test_ewc_lambda_scales_penalty(self):
         import torch
-        from asft.continual.ewc_trainer import EWCRegularizer, EWCConfig
+
+        from asft.continual.ewc_trainer import EWCConfig, EWCRegularizer
 
         def make_ewc(lam):
             model = self._make_tiny_model()

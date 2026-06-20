@@ -5,7 +5,7 @@ Uses KMeans or DBSCAN on sentence embeddings.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -18,21 +18,21 @@ class DatasetClusterer:
     Enables representative sample selection within each cluster.
     """
 
-    def __init__(self, method: str = "kmeans", n_clusters: Optional[int] = None,
+    def __init__(self, method: str = "kmeans", n_clusters: int | None = None,
                  min_cluster_size: int = 3, reduction_ratio: float = 0.3):
         self._method = method
         self._n_clusters = n_clusters
         self._min_cluster_size = min_cluster_size
         self._reduction_ratio = reduction_ratio
 
-    def embed_texts(self, texts: List[str], model_name: str = "all-MiniLM-L6-v2") -> np.ndarray:
+    def embed_texts(self, texts: list[str], model_name: str = "all-MiniLM-L6-v2") -> np.ndarray:
         """Embed texts using sentence-transformers."""
         from sentence_transformers import SentenceTransformer
         model = SentenceTransformer(model_name)
         embeddings = model.encode(texts, show_progress_bar=True, normalize_embeddings=True)
         return embeddings
 
-    def cluster(self, embeddings: np.ndarray) -> Tuple[np.ndarray, Dict[str, Any]]:
+    def cluster(self, embeddings: np.ndarray) -> tuple[np.ndarray, dict[str, Any]]:
         """
         Cluster embeddings.
         Returns (cluster_labels, stats).
@@ -45,7 +45,7 @@ class DatasetClusterer:
         else:
             raise ValueError(f"Unknown clustering method: {self._method}")
 
-    def _kmeans(self, embeddings: np.ndarray, n: int) -> Tuple[np.ndarray, Dict]:
+    def _kmeans(self, embeddings: np.ndarray, n: int) -> tuple[np.ndarray, dict]:
         k = self._n_clusters or max(2, int(n * self._reduction_ratio))
         k = min(k, n)
         
@@ -67,7 +67,7 @@ class DatasetClusterer:
         }
         return labels, stats
 
-    def _dbscan(self, embeddings: np.ndarray) -> Tuple[np.ndarray, Dict]:
+    def _dbscan(self, embeddings: np.ndarray) -> tuple[np.ndarray, dict]:
         from sklearn.cluster import DBSCAN
         db = DBSCAN(eps=0.3, min_samples=self._min_cluster_size, metric="cosine")
         labels = db.fit_predict(embeddings)
@@ -82,8 +82,8 @@ class DatasetClusterer:
         }
         return labels, stats
 
-    def cluster_texts(self, texts: List[str],
-                      embedding_model: str = "all-MiniLM-L6-v2") -> Tuple[np.ndarray, Dict]:
+    def cluster_texts(self, texts: list[str],
+                      embedding_model: str = "all-MiniLM-L6-v2") -> tuple[np.ndarray, dict]:
         """Convenience: embed + cluster in one call."""
         embeddings = self.embed_texts(texts, model_name=embedding_model)
         return self.cluster(embeddings)

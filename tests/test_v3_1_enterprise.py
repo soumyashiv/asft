@@ -1,13 +1,15 @@
-import unittest
 import os
-from unittest.mock import patch, MagicMock
+import unittest
+from unittest.mock import patch
 
 # Import the new hardened modules
 from asft.dataset.streaming_compressor import StreamingCompressor
-from asft.optimizer.decision_engine import OptimizerDecisionEngine, MultiArmedBanditRouter, CostEstimator
 from asft.memory.backends.secure_qdrant import SecureQdrantAdapter
+from asft.optimizer.decision_engine import (
+    MultiArmedBanditRouter,
+)
 from asft.training.checkpoint_manager import CheckpointManager
-from asft.db.maintenance import prune_routing_history
+
 
 class TestASFTV31Enterprise(unittest.TestCase):
 

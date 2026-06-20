@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class CritiqueResult:
     original_output: str
     revised_output: str
-    issues_found: List[str]
+    issues_found: list[str]
     was_revised: bool
     critique_rounds: int
     quality_improvement: float  # estimated improvement 0–1
@@ -52,7 +52,7 @@ class SelfCritiqueEngine:
         self,
         output: str,
         original_task: str,
-        generate_fn: Optional[Callable[[str], str]] = None,
+        generate_fn: Callable[[str], str] | None = None,
     ) -> CritiqueResult:
         """
         Critique an output and optionally revise it.
@@ -66,7 +66,7 @@ class SelfCritiqueEngine:
             CritiqueResult with original, revised, and issue list
         """
         current = output
-        all_issues: List[str] = []
+        all_issues: list[str] = []
         rounds = 0
         was_revised = False
 
@@ -108,7 +108,7 @@ class SelfCritiqueEngine:
             quality_improvement=quality_improvement,
         )
 
-    def _detect_issues(self, text: str) -> List[str]:
+    def _detect_issues(self, text: str) -> list[str]:
         issues = []
         for detector in self._issue_detectors:
             found = detector(text)
@@ -116,7 +116,7 @@ class SelfCritiqueEngine:
                 issues.extend(found)
         return issues
 
-    def _detect_contradictions(self, text: str) -> List[str]:
+    def _detect_contradictions(self, text: str) -> list[str]:
         """Detect obvious contradictions using negation patterns."""
         sentences = [s.strip() for s in re.split(r'[.!?]', text) if len(s.strip()) > 10]
         issues = []
@@ -133,7 +133,7 @@ class SelfCritiqueEngine:
                     break
         return issues[:2]  # Cap at 2 to avoid noise
 
-    def _detect_hallucination_markers(self, text: str) -> List[str]:
+    def _detect_hallucination_markers(self, text: str) -> list[str]:
         """Detect patterns commonly associated with hallucinations."""
         patterns = [
             (r"\brecently published\b.*\bstudy\b", "unsourced_study_claim"),
@@ -147,7 +147,7 @@ class SelfCritiqueEngine:
                 issues.append(label)
         return issues
 
-    def _detect_logical_gaps(self, text: str) -> List[str]:
+    def _detect_logical_gaps(self, text: str) -> list[str]:
         """Detect reasoning gaps — conclusions without supporting reasoning."""
         issues = []
         has_conclusion = any(w in text.lower() for w in ["therefore", "thus", "hence", "so", "conclusion"])
@@ -156,18 +156,18 @@ class SelfCritiqueEngine:
             issues.append("conclusion_without_reasoning")
         return issues
 
-    def _detect_incomplete_response(self, text: str) -> List[str]:
+    def _detect_incomplete_response(self, text: str) -> list[str]:
         """Detect suspiciously short or abruptly cut-off responses."""
         issues = []
         if len(text.strip()) < 20:
             issues.append("response_too_short")
-        if text.strip() and not text.strip()[-1] in ".!?\"'`":
+        if text.strip() and text.strip()[-1] not in ".!?\"'`":
             if len(text) > 50:  # Not just a very short answer
                 issues.append("response_appears_truncated")
         return issues
 
     def _build_revision_prompt(self, original_task: str, current_output: str,
-                                issues: List[str]) -> str:
+                                issues: list[str]) -> str:
         issues_str = "\n".join(f"  - {issue}" for issue in issues)
         return (
             f"Review and improve this response. The following issues were detected:\n"

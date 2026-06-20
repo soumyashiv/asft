@@ -1,10 +1,8 @@
+import logging
 import os
 import shutil
-import logging
-import tempfile
-from pathlib import Path
-from typing import Optional
-from transformers import TrainerCallback, TrainerState, TrainerControl
+
+from transformers import TrainerCallback, TrainerControl, TrainerState
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +98,7 @@ class CheckpointManager(TrainerCallback):
         logger.info(f"Successfully copied {checkpoint_name} to {dest_path}.")
 
     @classmethod
-    def get_latest_checkpoint(cls, job_id: str) -> Optional[str]:
+    def get_latest_checkpoint(cls, job_id: str) -> str | None:
         """Utility to retrieve the latest checkpoint for resumption."""
         s3_bucket = os.getenv("ASFT_S3_CHECKPOINT_BUCKET")
         local_volume = os.getenv("ASFT_LOCAL_CHECKPOINT_DIR", "./asft_data/checkpoints")

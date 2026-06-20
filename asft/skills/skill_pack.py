@@ -7,7 +7,6 @@ from the API schemas.
 """
 import logging
 import time
-from typing import Any, Dict
 
 from asft.core.interfaces import ISkillPack, SkillInput, SkillOutput
 
@@ -52,3 +51,41 @@ class BaseSkillPack(ISkillPack):
     def evaluate(self, sample_input: str, sample_output: str) -> float:
         """Score output quality. Returns 0-1."""
         return 0.8
+
+# --- LEGACY COMPATIBILITY LAYER ---
+from dataclasses import dataclass, field
+from typing import Any
+
+@dataclass
+class SkillMeta:
+    name: str = ""
+    domain: str = ""
+    description: str = ""
+    tags: list[str] = field(default_factory=list)
+    performance_score: float = 1.0
+
+@dataclass
+class SkillResult:
+    skill_name: str
+    output: str
+    confidence: float
+    duration_seconds: float
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+class SkillPack:
+    def __init__(self, name: str, pack_dir=None):
+        self.meta = SkillMeta(name=name)
+        self.pack_dir = pack_dir
+        
+    def process(self, task_input: str, model=None, tokenizer=None, **kwargs) -> SkillResult:
+        raise NotImplementedError
+
+    def evaluate(self, sample_input: str, sample_output: str) -> float:
+        return 0.0
+
+    def record_usage(self, success: bool, score: float):
+        pass
+        
+    def get_prompt_template(self) -> str:
+        return ""
+

@@ -34,7 +34,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from asft.security.sandbox import validate_code_syntax, verify_math_with_sympy
 
@@ -48,7 +47,7 @@ class VerificationResult:
     method: str             # "math_cas" | "code_ast" | "memory" | "heuristic" | "none"
     confidence: float       # 0–1
     details: str = ""
-    corrections: Optional[str] = None
+    corrections: str | None = None
     safe_to_execute: bool = False  # Always False — we never execute LLM code
 
 

@@ -13,12 +13,10 @@ Examples:
 from __future__ import annotations
 
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional, Any
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -53,11 +51,11 @@ class ASFTSettings(BaseSettings):
     )
 
     @property
-    def api_keys(self) -> List[str]:
+    def api_keys(self) -> list[str]:
         return [k.strip() for k in self.api_keys_str.split(",") if k.strip()]
 
     @property
-    def allowed_origins(self) -> List[str]:
+    def allowed_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins_str.split(",") if o.strip()]
     rate_limit_per_minute: int = Field(default=120, ge=1, le=10_000)
     rate_limit_burst: int = Field(default=30, ge=1, le=1_000)

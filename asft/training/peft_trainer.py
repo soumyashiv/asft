@@ -34,15 +34,12 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import Optional
 
-from asft.core.interfaces import ITrainer, TrainingConfig, TrainingResult
 from asft.core.exceptions import (
-    ModelNotFoundError,
     InsufficientResourcesError,
-    TrainingError,
-    CheckpointError,
+    ModelNotFoundError,
 )
+from asft.core.interfaces import ITrainer, TrainingConfig, TrainingResult
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +143,8 @@ class PEFTTrainer(ITrainer):
 
     def _load_model(self, config: TrainingConfig):
         """Load the base model with optional BitsAndBytes quantisation."""
-        from transformers import AutoModelForCausalLM, AutoTokenizer
         import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
 
         logger.info("Loading model: %s (quantization=%s)", config.model_name, config.quantization)
 
@@ -232,8 +229,8 @@ class PEFTTrainer(ITrainer):
 
     def _build_sft_trainer(self, model, tokenizer, dataset, config: TrainingConfig):
         """Build a TRL SFTTrainer with correct step calculation."""
-        from trl import SFTTrainer, SFTConfig
         import torch
+        from trl import SFTConfig, SFTTrainer
 
         output_dir = Path(config.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -275,7 +272,7 @@ class PEFTTrainer(ITrainer):
         return trainable, total
 
     @staticmethod
-    def _find_checkpoint(output_dir: str) -> Optional[str]:
+    def _find_checkpoint(output_dir: str) -> str | None:
         """Look for the latest checkpoint to resume from."""
         from transformers.trainer_utils import get_last_checkpoint
         try:
@@ -284,7 +281,7 @@ class PEFTTrainer(ITrainer):
             return None
 
     @staticmethod
-    def _extract_loss(log_history: list, key: str) -> Optional[float]:
+    def _extract_loss(log_history: list, key: str) -> float | None:
         """Extract the last logged value for a loss key from training history."""
         values = [entry[key] for entry in log_history if key in entry]
         return round(values[-1], 6) if values else None

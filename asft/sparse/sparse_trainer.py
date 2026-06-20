@@ -34,7 +34,7 @@ This file is intentionally NOT imported by any production module.
 """
 
 import logging
-from typing import Dict, Any, List
+from typing import Any
 
 import torch
 from torch.utils.data import DataLoader
@@ -54,14 +54,14 @@ class SparseTrainer:
     step calculation bug has been fixed.
     """
     
-    def __init__(self, model, optimizer, config: Dict[str, Any]):
+    def __init__(self, model, optimizer, config: dict[str, Any]):
         self.model = model
         self.optimizer = optimizer
         self.config = config
         self.device = config.get("device", "cuda" if torch.cuda.is_available() else "cpu")
         self.sparsity_ratio = config.get("sparsity_ratio", 0.95)
         
-    def _compute_masks(self, threshold: float) -> Dict[str, torch.Tensor]:
+    def _compute_masks(self, threshold: float) -> dict[str, torch.Tensor]:
         """Compute boolean masks for gradients based on magnitude."""
         masks = {}
         for name, param in self.model.named_parameters():
@@ -70,13 +70,13 @@ class SparseTrainer:
                 masks[name] = mask
         return masks
         
-    def _apply_masks(self, masks: Dict[str, torch.Tensor]):
+    def _apply_masks(self, masks: dict[str, torch.Tensor]):
         """Zero out gradients where mask is False."""
         for name, param in self.model.named_parameters():
             if param.requires_grad and param.grad is not None and name in masks:
                 param.grad.data.mul_(masks[name])
                 
-    def train(self, dataloader: DataLoader, max_steps: int = 500) -> Dict[str, Any]:
+    def train(self, dataloader: DataLoader, max_steps: int = 500) -> dict[str, Any]:
         """
         Run the training loop with experimental sparsity.
         
@@ -91,7 +91,7 @@ class SparseTrainer:
         logger.info("Starting sparse training run: steps=%d, sparsity=%.2f", 
                     total_steps, self.sparsity_ratio)
         
-        losses: List[float] = []
+        losses: list[float] = []
         step = 0
         
         # We need an iterator to manually step through

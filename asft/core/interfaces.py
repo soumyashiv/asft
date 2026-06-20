@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Memory Interfaces
@@ -23,18 +22,18 @@ class MemoryQueryResult:
     source: str           # which memory tier returned this
     content: Any          # the retrieved content
     confidence: float     # relevance score 0–1
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class IMemoryStore(abc.ABC):
     """Abstract contract for all vector memory backends (Qdrant, FAISS, etc.)."""
 
     @abc.abstractmethod
-    async def add(self, content: str, metadata: Optional[Dict] = None) -> str:
+    async def add(self, content: str, metadata: dict | None = None) -> str:
         """Persist a single item. Returns a unique item ID."""
 
     @abc.abstractmethod
-    async def update(self, item_id: str, content: str, metadata: Optional[Dict] = None) -> bool:
+    async def update(self, item_id: str, content: str, metadata: dict | None = None) -> bool:
         """Update an existing item."""
 
     @abc.abstractmethod
@@ -42,11 +41,11 @@ class IMemoryStore(abc.ABC):
         """Delete an item by ID. Returns True if deleted."""
 
     @abc.abstractmethod
-    async def search(self, query_vector: List[float], top_k: int = 5) -> List[MemoryQueryResult]:
+    async def search(self, query_vector: list[float], top_k: int = 5) -> list[MemoryQueryResult]:
         """Retrieve top-k items most relevant to the query vector."""
 
     @abc.abstractmethod
-    async def batch_insert(self, contents: List[str], metadatas: Optional[List[Dict]] = None) -> List[str]:
+    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None) -> list[str]:
         """Insert multiple items efficiently. Returns a list of IDs."""
 
     @abc.abstractmethod
@@ -79,8 +78,8 @@ class TrainingConfig:
     eval_steps: int               = 50
     save_steps: int               = 100
     sparsity_ratio: float         = 0.95          # only used by sparse method
-    fsdp: Optional[str]           = None          # e.g., "full_shard auto_wrap"
-    deepspeed: Optional[str]      = None          # e.g., "ds_config.json"
+    fsdp: str | None           = None          # e.g., "full_shard auto_wrap"
+    deepspeed: str | None      = None          # e.g., "ds_config.json"
 
 
 @dataclass
@@ -89,12 +88,12 @@ class TrainingResult:
     job_id: str
     status: str                   # completed | failed | cancelled
     method: str
-    final_loss: Optional[float]   = None
-    eval_loss: Optional[float]    = None
+    final_loss: float | None   = None
+    eval_loss: float | None    = None
     steps_completed: int          = 0
     duration_seconds: float       = 0.0
-    checkpoint_path: Optional[str] = None
-    error_message: Optional[str]  = None
+    checkpoint_path: str | None = None
+    error_message: str | None  = None
 
 
 class ITrainer(abc.ABC):
@@ -118,10 +117,10 @@ class ITrainer(abc.ABC):
 class SkillInput:
     """Validated, typed input for a skill pack."""
     task: str
-    context: Optional[str]        = None
+    context: str | None        = None
     max_tokens: int               = 512
     temperature: float            = 0.7
-    metadata: Dict[str, Any]      = field(default_factory=dict)
+    metadata: dict[str, Any]      = field(default_factory=dict)
 
 
 @dataclass
@@ -132,8 +131,8 @@ class SkillOutput:
     confidence: float             # 0–1 calibrated confidence
     duration_seconds: float
     requires_disclaimer: bool     = False
-    disclaimer: Optional[str]     = None
-    metadata: Dict[str, Any]      = field(default_factory=dict)
+    disclaimer: str | None     = None
+    metadata: dict[str, Any]      = field(default_factory=dict)
 
 
 class ISkillPack(abc.ABC):
@@ -151,7 +150,7 @@ class ISkillPack(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def tags(self) -> List[str]:
+    def tags(self) -> list[str]:
         """Domain tags used for routing."""
 
     @abc.abstractmethod
@@ -179,7 +178,7 @@ class VerificationResult:
     method: str               # "math_cas" | "code_sandbox" | "memory" | "none"
     confidence: float         # 0–1
     details: str              = ""
-    corrections: Optional[str] = None
+    corrections: str | None = None
     safe_to_execute: bool     = True  # set False if code deemed unsafe
 
 
@@ -204,32 +203,32 @@ class JobRecord:
     status: str               # "queued" | "running" | "completed" | "failed" | "cancelled"
     created_at: float
     updated_at: float
-    payload: Dict[str, Any]   = field(default_factory=dict)
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str]      = None
+    payload: dict[str, Any]   = field(default_factory=dict)
+    result: dict[str, Any] | None = None
+    error: str | None      = None
 
 
 class IJobStore(abc.ABC):
     """Abstract contract for persistent job state storage."""
 
     @abc.abstractmethod
-    async def create(self, job_id: str, job_type: str, payload: Dict[str, Any]) -> JobRecord:
+    async def create(self, job_id: str, job_type: str, payload: dict[str, Any]) -> JobRecord:
         """Create a new job record."""
 
     @abc.abstractmethod
-    async def get(self, job_id: str) -> Optional[JobRecord]:
+    async def get(self, job_id: str) -> JobRecord | None:
         """Retrieve a job record by ID. Returns None if not found."""
 
     @abc.abstractmethod
     async def update_status(self, job_id: str, status: str,
-                            result: Optional[Dict] = None,
-                            error: Optional[str] = None) -> None:
+                            result: dict | None = None,
+                            error: str | None = None) -> None:
         """Atomically update job status and result."""
 
     @abc.abstractmethod
-    async def list_jobs(self, job_type: Optional[str] = None,
-                        status: Optional[str] = None,
-                        limit: int = 50) -> List[JobRecord]:
+    async def list_jobs(self, job_type: str | None = None,
+                        status: str | None = None,
+                        limit: int = 50) -> list[JobRecord]:
         """List jobs, optionally filtered by type and status."""
 
 
@@ -243,17 +242,17 @@ class IMetricsCollector(abc.ABC):
 
     @abc.abstractmethod
     def increment(self, name: str, value: float = 1.0,
-                  labels: Optional[Dict[str, str]] = None) -> None:
+                  labels: dict[str, str] | None = None) -> None:
         """Increment a counter metric."""
 
     @abc.abstractmethod
     def gauge(self, name: str, value: float,
-              labels: Optional[Dict[str, str]] = None) -> None:
+              labels: dict[str, str] | None = None) -> None:
         """Set an absolute gauge value."""
 
     @abc.abstractmethod
     def histogram(self, name: str, value: float,
-                  labels: Optional[Dict[str, str]] = None) -> None:
+                  labels: dict[str, str] | None = None) -> None:
         """Record a histogram observation (e.g., latency)."""
 
 
@@ -325,7 +324,7 @@ class IEvaluationHarness(abc.ABC):
     """Abstract contract for model evaluation harness (e.g. lm-evaluation-harness)."""
 
     @abc.abstractmethod
-    async def evaluate(self, model_path: str, tasks: List[str]) -> Dict[str, Any]:
+    async def evaluate(self, model_path: str, tasks: list[str]) -> dict[str, Any]:
         """Run benchmark tasks on a model and return metrics."""
 
 

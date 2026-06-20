@@ -29,13 +29,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from concurrent.futures import Future, ProcessPoolExecutor
-from typing import Any, Callable, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Module-level pool singleton — managed by lifespan
-_pool: Optional[ProcessPoolExecutor] = None
+_pool: ProcessPoolExecutor | None = None
 
 
 def _worker_initializer() -> None:
@@ -80,7 +81,7 @@ def shutdown_pool(wait: bool = True) -> None:
 async def submit_to_pool(
     fn: Callable,
     *args: Any,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
     **kwargs: Any,
 ) -> Any:
     """

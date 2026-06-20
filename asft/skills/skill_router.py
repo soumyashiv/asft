@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RoutingDecision:
     task_input: str
-    selected_packs: List[str]
-    scores: Dict[str, float]
+    selected_packs: list[str]
+    scores: dict[str, float]
     strategy: str  # "single" | "multi" | "consensus"
     reason: str = ""
 
 
 # Keyword-based domain hints for fast routing
-_DOMAIN_KEYWORDS: Dict[str, List[str]] = {
+_DOMAIN_KEYWORDS: dict[str, list[str]] = {
     "coding": [
         "code", "python", "javascript", "function", "class", "bug", "debug",
         "algorithm", "implement", "script", "api", "compile", "syntax", "error",
@@ -74,7 +74,7 @@ class SkillRouter:
         self._embedder = embedding_model  # Optional EmbeddingModel
         # FIX F10: bounded deque prevents unbounded memory growth
         self._routing_history: deque = deque(maxlen=10_000)
-        self._skill_embeddings: Dict[str, List[float]] = {}
+        self._skill_embeddings: dict[str, list[float]] = {}
 
     def route(
         self,
@@ -104,7 +104,7 @@ class SkillRouter:
         perf_scores = self._performance_score(available_skills)
 
         # Combine scores
-        combined: Dict[str, float] = {}
+        combined: dict[str, float] = {}
         for skill in available_skills:
             combined[skill] = (
                 0.4 * keyword_scores.get(skill, 0.0)
@@ -135,9 +135,9 @@ class SkillRouter:
         logger.info("Routed to: %s (scores=%s)", selected, {k: round(v, 3) for k, v in combined.items()})
         return decision
 
-    def _keyword_score(self, text: str, skills: List[str]) -> Dict[str, float]:
+    def _keyword_score(self, text: str, skills: list[str]) -> dict[str, float]:
         text_lower = text.lower()
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
         for skill in skills:
             domain = skill.split(".")[-1] if "." in skill else skill
             keywords = _DOMAIN_KEYWORDS.get(domain, [])
@@ -145,14 +145,14 @@ class SkillRouter:
             scores[skill] = min(1.0, hit_count / max(1, len(keywords) * 0.3))
         return scores
 
-    def _embedding_score(self, text: str, skills: List[str]) -> Dict[str, float]:
+    def _embedding_score(self, text: str, skills: list[str]) -> dict[str, float]:
         if self._embedder is None:
             return {s: 0.0 for s in skills}
         try:
             import numpy as np
             query_emb = self._embedder.encode_one(text)
 
-            scores: Dict[str, float] = {}
+            scores: dict[str, float] = {}
             for skill in skills:
                 if skill not in self._skill_embeddings:
                     # Build description from domain keywords
@@ -171,8 +171,8 @@ class SkillRouter:
             logger.debug("Embedding routing failed: %s", e)
             return {s: 0.0 for s in skills}
 
-    def _performance_score(self, skills: List[str]) -> Dict[str, float]:
-        scores: Dict[str, float] = {}
+    def _performance_score(self, skills: list[str]) -> dict[str, float]:
+        scores: dict[str, float] = {}
         for skill in skills:
             pack = self._registry.get_or_none("skill_packs", skill)
             if pack and hasattr(pack, "meta"):
@@ -187,7 +187,7 @@ class SkillRouter:
         if pack and hasattr(pack, "record_usage"):
             pack.record_usage(success=success, score=score)
 
-    def get_top_skills(self, task: str, top_k: int = 3) -> Tuple[List[str], List[float]]:
+    def get_top_skills(self, task: str, top_k: int = 3) -> tuple[list[str], list[float]]:
         """
         Return top-k skills and their scores for a given task.
         Used by AutoOptimizer to check skill coverage before recommending training.
@@ -205,8 +205,8 @@ class SkillRouter:
         top = sorted_skills[:top_k]
         return [name for name, _ in top], [score for _, score in top]
 
-    def routing_stats(self) -> Dict[str, Any]:
-        skill_counts: Dict[str, int] = {}
+    def routing_stats(self) -> dict[str, Any]:
+        skill_counts: dict[str, int] = {}
         for entry in self._routing_history:
             for skill in entry["decision"].selected_packs:
                 skill_counts[skill] = skill_counts.get(skill, 0) + 1

@@ -1,11 +1,10 @@
 import importlib
+import inspect
 import logging
 import pkgutil
-import inspect
-from typing import List, Type
 
+from asft.core.interfaces import IMemoryStore, ISkillPack, ITrainer
 from asft.core.registry import Registry
-from asft.core.interfaces import ISkillPack, IMemoryStore, ITrainer
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class PluginLoader:
         except Exception as e:
             logger.error("Error loading module %s: %s", modname, e)
 
-    def _register_if_compliant(self, cls: Type) -> None:
+    def _register_if_compliant(self, cls: type) -> None:
         try:
             if issubclass(cls, ISkillPack) and cls is not ISkillPack:
                 instance = cls()

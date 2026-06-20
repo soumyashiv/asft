@@ -1,8 +1,6 @@
+import logging
 import time
 import uuid
-import logging
-from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from asft.db.database import SessionLocal
 from asft.db.models import RoutingHistory, StrategyOutcome

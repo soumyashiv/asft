@@ -1,6 +1,8 @@
 """Research Skill Pack — Information synthesis, analysis, and literature review."""
 from __future__ import annotations
+
 import time
+
 from asft.skills.skill_pack import SkillPack, SkillResult
 
 

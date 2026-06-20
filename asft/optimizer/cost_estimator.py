@@ -37,7 +37,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 # Known model parameter counts (billions)
 # Used to look up N when only a name is provided.
 # ---------------------------------------------------------------------------
-_MODEL_PARAM_BILLIONS: Dict[str, float] = {
+_MODEL_PARAM_BILLIONS: dict[str, float] = {
     # Qwen2 family
     "qwen/qwen2-0.5b": 0.5, "qwen/qwen2-1.5b": 1.5,
     "qwen/qwen2-7b": 7.0, "qwen/qwen2-72b": 72.0,
@@ -75,7 +75,7 @@ _MODEL_PARAM_BILLIONS: Dict[str, float] = {
 }
 
 # GPU TFLOPS for bf16 (approximate peak; real utilization is ~30-50% of peak)
-_GPU_TFLOPS: Dict[str, float] = {
+_GPU_TFLOPS: dict[str, float] = {
     "h100": 312.0, "a100_80gb": 312.0, "a100_40gb": 312.0,
     "a6000": 154.0, "rtx4090": 82.6, "rtx3090": 35.6,
     "v100": 112.0, "t4": 65.0, "cpu": 0.05,
@@ -83,7 +83,7 @@ _GPU_TFLOPS: Dict[str, float] = {
 }
 
 # Cost per GPU-hour (USD, on-demand, mid-2024 estimates)
-_GPU_COST_PER_HOUR: Dict[str, float] = {
+_GPU_COST_PER_HOUR: dict[str, float] = {
     "h100": 4.50, "a100_80gb": 3.20, "a100_40gb": 2.80,
     "a6000": 1.80, "rtx4090": 0.80, "rtx3090": 0.50,
     "v100": 2.00, "t4": 0.60, "cpu": 0.08,
@@ -91,7 +91,7 @@ _GPU_COST_PER_HOUR: Dict[str, float] = {
 }
 
 # Trainable parameter fraction for each method (realistic, from literature)
-_TRAINABLE_FRACTION: Dict[str, float] = {
+_TRAINABLE_FRACTION: dict[str, float] = {
     "peft_lora": 0.005,   # LoRA: ~0.1–1% of params; 0.5% is typical
     "qlora": 0.005,       # QLoRA: same LoRA fraction, 4-bit base
     "lora": 0.005,
@@ -143,7 +143,7 @@ class CostEstimator:
     def __init__(
         self,
         gpu_utilization_factor: float = 0.40,  # 40% of peak TFLOPS (realistic)
-        gpu_cost_per_hour: Optional[float] = None,
+        gpu_cost_per_hour: float | None = None,
     ):
         self._utilization = gpu_utilization_factor
         self._gpu_cost_override = gpu_cost_per_hour
@@ -153,7 +153,7 @@ class CostEstimator:
         model_name: str,
         dataset_size: int,
         method: str = "qlora",
-        hardware_profile: Optional[Any] = None,
+        hardware_profile: Any | None = None,
         max_steps: int = 500,
         batch_size: int = 1,
         seq_len: int = 512,
@@ -256,7 +256,7 @@ class CostEstimator:
 
     def compare_methods(
         self, model_name: str, dataset_size: int, **kwargs
-    ) -> Dict[str, TrainingEstimate]:
+    ) -> dict[str, TrainingEstimate]:
         """Compare all training methods side-by-side."""
         return {
             method: self.estimate(model_name, dataset_size, method=method, **kwargs)
@@ -281,7 +281,7 @@ class CostEstimator:
         logger.warning("Unknown model size for '%s' — assuming 7B", model_name)
         return 7.0
 
-    def _get_gpu_name(self, hardware_profile: Optional[Any]) -> str:
+    def _get_gpu_name(self, hardware_profile: Any | None) -> str:
         """Extract GPU name from hardware profile."""
         if hardware_profile is None:
             return "unknown"
@@ -295,7 +295,7 @@ class CostEstimator:
         self,
         method: str, cost_usd: float, gpu_hours: float,
         accuracy_gain: float, dataset_size: int, n_params: float,
-        trainable_frac: float, hardware_profile: Optional[Any],
+        trainable_frac: float, hardware_profile: Any | None,
     ) -> tuple[str, str, list]:
         """Produce a human-readable recommendation."""
         warnings = []

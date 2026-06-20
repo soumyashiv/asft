@@ -1,8 +1,9 @@
-import numpy as np
-from typing import Dict, List, Optional
 import uuid
 
+import numpy as np
+
 from asft.core.interfaces import IMemoryStore, MemoryQueryResult
+
 
 class FaissBackend(IMemoryStore):
     """FAISS-based vector memory backend (in-memory local)."""
@@ -12,11 +13,11 @@ class FaissBackend(IMemoryStore):
         self.dimension = dimension
         self.index = faiss.IndexFlatL2(dimension)
         # FAISS only maps int64 to vectors. We need an ID mapping.
-        self.id_to_vector_id: Dict[str, int] = {}
-        self.vector_id_to_data: Dict[int, Dict] = {}
+        self.id_to_vector_id: dict[str, int] = {}
+        self.vector_id_to_data: dict[int, dict] = {}
         self._next_id = 0
 
-    async def add(self, content: str, metadata: Optional[Dict] = None, vector: Optional[List[float]] = None) -> str:
+    async def add(self, content: str, metadata: dict | None = None, vector: list[float] | None = None) -> str:
         if not vector:
             vector = [0.0] * self.dimension
         
@@ -32,7 +33,7 @@ class FaissBackend(IMemoryStore):
         
         return point_id
 
-    async def update(self, item_id: str, content: str, metadata: Optional[Dict] = None, vector: Optional[List[float]] = None) -> bool:
+    async def update(self, item_id: str, content: str, metadata: dict | None = None, vector: list[float] | None = None) -> bool:
         # FAISS Flat index doesn't support easy updates.
         # We delete and re-add.
         await self.delete(item_id)
@@ -56,7 +57,7 @@ class FaissBackend(IMemoryStore):
             return True
         return False
 
-    async def search(self, query_vector: List[float], top_k: int = 5) -> List[MemoryQueryResult]:
+    async def search(self, query_vector: list[float], top_k: int = 5) -> list[MemoryQueryResult]:
         if self.index.ntotal == 0:
             return []
             
@@ -77,7 +78,7 @@ class FaissBackend(IMemoryStore):
                 )
         return results
 
-    async def batch_insert(self, contents: List[str], metadatas: Optional[List[Dict]] = None, vectors: Optional[List[List[float]]] = None) -> List[str]:
+    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None, vectors: list[list[float]] | None = None) -> list[str]:
         if not vectors:
             vectors = [[0.0] * self.dimension for _ in contents]
             

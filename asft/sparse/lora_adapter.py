@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional
 
 import torch
 
@@ -25,7 +24,7 @@ _TARGET_MODULES_MAP = {
 }
 
 
-def _detect_target_modules(model) -> List[str]:
+def _detect_target_modules(model) -> list[str]:
     """Auto-detect LoRA target modules based on model architecture name."""
     model_type = getattr(model.config, "model_type", "default").lower()
     for key, modules in _TARGET_MODULES_MAP.items():
@@ -45,7 +44,7 @@ class LoRAAdapter:
         self._model = None
         self._peft_model = None
 
-    def wrap(self, model, quantization: Optional[str] = None) -> object:
+    def wrap(self, model, quantization: str | None = None) -> object:
         """
         Wrap a base model with LoRA (or QLoRA if quantization is set).
         Returns the PEFT model.
@@ -112,7 +111,7 @@ class LoRAAdapter:
 
 
 def load_quantized_model(model_name: str, quantization: str = "4bit",
-                          cache_dir: Optional[str] = None, trust_remote_code: bool = True):
+                          cache_dir: str | None = None, trust_remote_code: bool = True):
     """
     Load a HuggingFace model with bitsandbytes quantization for QLoRA.
     """

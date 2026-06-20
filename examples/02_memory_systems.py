@@ -5,10 +5,11 @@ Demonstrates: WorkingMemory + EpisodicMemory + SemanticMemory + MemoryManager
 All memory operations use SQLite — no model needed.
 """
 import time
+
 from asft.core.config import ASFTConfig
-from asft.memory.working_memory import WorkingMemory
 from asft.memory.episodic_memory import EpisodicMemory
 from asft.memory.semantic_memory import SemanticMemory
+from asft.memory.working_memory import WorkingMemory
 
 print("=" * 60)
 print("ASFT — Example 2: Memory Systems")

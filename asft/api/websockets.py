@@ -1,7 +1,8 @@
-import logging
-from typing import Dict, List, Any
-import json
 import asyncio
+import json
+import logging
+from typing import Any
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
@@ -11,7 +12,7 @@ router = APIRouter()
 class ConnectionManager:
     def __init__(self):
         # Map job_id to a list of connected websockets
-        self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.active_connections: dict[str, list[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, job_id: str):
         await websocket.accept()
@@ -27,7 +28,7 @@ class ConnectionManager:
                 del self.active_connections[job_id]
             logger.info("Client disconnected from job %s", job_id)
 
-    async def broadcast(self, job_id: str, message: Dict[str, Any]):
+    async def broadcast(self, job_id: str, message: dict[str, Any]):
         if job_id in self.active_connections:
             websockets = self.active_connections[job_id]
             tasks = [ws.send_json(message) for ws in websockets]
@@ -47,7 +48,9 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
         manager.disconnect(websocket, job_id)
 
 import redis.asyncio as redis
+
 from asft.core.settings import get_settings
+
 
 async def redis_listener():
     """Background task to listen to Redis and broadcast to WebSockets."""

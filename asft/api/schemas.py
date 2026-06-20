@@ -6,9 +6,9 @@ all endpoints and makes API contract changes easy to find and audit.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Any
 
+from pydantic import BaseModel, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Training
@@ -67,9 +67,9 @@ class JobStatusResponse(BaseModel):
     status: str
     created_at: float
     updated_at: float
-    payload: Dict[str, Any] = {}
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    payload: dict[str, Any] = {}
+    result: dict[str, Any] | None = None
+    error: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -92,14 +92,14 @@ class SkillRouteRequest(BaseModel):
 
 
 class SkillRouteResponse(BaseModel):
-    selected: List[str]
-    scores: Dict[str, float]
+    selected: list[str]
+    scores: dict[str, float]
     strategy: str
 
 
 class SkillProcessRequest(BaseModel):
     task: str = Field(..., min_length=1, max_length=8000)
-    context: Optional[str] = Field(None, max_length=32000)
+    context: str | None = Field(None, max_length=32000)
     max_tokens: int = Field(512, ge=1, le=4096)
     temperature: float = Field(0.7, ge=0.0, le=2.0)
 
@@ -110,13 +110,13 @@ class SkillProcessResponse(BaseModel):
     confidence: float
     duration_seconds: float
     requires_disclaimer: bool = False
-    disclaimer: Optional[str] = None
+    disclaimer: str | None = None
 
 
 class SkillInfoResponse(BaseModel):
     name: str
     description: str
-    tags: List[str]
+    tags: list[str]
     performance_score: float
 
 
@@ -138,7 +138,7 @@ class MemoryQueryResult(BaseModel):
 
 class MemoryQueryResponse(BaseModel):
     can_answer: bool
-    results: List[MemoryQueryResult]
+    results: list[MemoryQueryResult]
     total_found: int
 
 
@@ -213,7 +213,7 @@ class HardwareResponse(BaseModel):
     ram_available_gb: float
     has_cuda: bool
     has_mps: bool
-    gpus: List[HardwareGPU]
+    gpus: list[HardwareGPU]
     recommendations: HardwareRecommendations
 
 
@@ -221,10 +221,10 @@ class StatusResponse(BaseModel):
     status: str = "ok"
     version: str
     uptime_seconds: float
-    skills_registered: List[str]
+    skills_registered: list[str]
     memory_available: bool
     active_jobs: int
-    hardware_summary: Dict[str, Any]
+    hardware_summary: dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +235,7 @@ class StatusResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     message: str
-    request_id: Optional[str] = None
+    request_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +271,7 @@ class OptimizeRequest(BaseModel):
     task: str = Field(..., min_length=1, max_length=8_000)
     domain: str = Field("general", max_length=64)
     target_accuracy: float = Field(0.8, ge=0.0, le=1.0)
-    budget_usd: Optional[float] = Field(None, ge=0.0,
+    budget_usd: float | None = Field(None, ge=0.0,
                                         description="Max spend in USD. None = no budget limit.")
     allow_training: bool = Field(True, description="Allow training as a fallback option.")
 
@@ -281,7 +281,7 @@ class OptimizeResponse(BaseModel):
     recommended_action: str   # "use_memory" | "use_skill" | "use_qlora" | "use_lora" | "distill"
     reasoning: str
     estimated_cost_usd: float
-    alternatives: List[Dict[str, Any]]
+    alternatives: list[dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------

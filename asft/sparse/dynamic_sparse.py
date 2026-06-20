@@ -61,9 +61,8 @@ RECOMMENDED USE:
 from __future__ import annotations
 
 import logging
-import math
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from dataclasses import dataclass
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -79,7 +78,7 @@ class SparseTrainingConfig:
     warmup_steps: int = 200             # Steps before first mask update (stabilize training)
     drop_fraction: float = 0.20         # Fraction of mask to update per cycle (20% = conservative)
     sparsity_schedule: str = "constant" # "constant" | "linear" (gradually increase sparsity)
-    target_layers: Optional[List[str]] = None  # Layer name substrings to target; None = all Linear
+    target_layers: list[str] | None = None  # Layer name substrings to target; None = all Linear
 
 
 @dataclass
@@ -113,12 +112,12 @@ class DynamicSparseMask:
     def __init__(self, model: nn.Module, config: SparseTrainingConfig):
         self._model = model
         self._config = config
-        self._masks: Dict[str, torch.Tensor] = {}
+        self._masks: dict[str, torch.Tensor] = {}
         self._n_updates = 0
 
         self._initialize_masks()
 
-    def _target_modules(self) -> List[tuple[str, nn.Module]]:
+    def _target_modules(self) -> list[tuple[str, nn.Module]]:
         """Return (name, module) pairs for layers that should be sparsified."""
         targets = self._config.target_layers
         result = []

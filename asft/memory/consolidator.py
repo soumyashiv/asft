@@ -6,7 +6,6 @@ Periodically scans EpisodicMemory for recurring patterns and extracts
 dense factual summaries to store in VectorMemory (SemanticMemory).
 """
 import logging
-from typing import Any, List
 
 from asft.core.interfaces import IMemoryBackend
 

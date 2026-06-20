@@ -7,7 +7,7 @@ Single source of truth for all framework settings.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
@@ -18,7 +18,7 @@ class MemoryConfig(BaseModel):
     embedding_model: str = "all-MiniLM-L6-v2"
     embedding_device: str = "cpu"
     chroma_persist_dir: str = "./asft_data/chroma"
-    chroma_host: Optional[str] = None
+    chroma_host: str | None = None
     chroma_port: int = 8000
     faiss_index_path: str = "./asft_data/faiss.index"
     faiss_index_type: str = "Flat"
@@ -54,18 +54,18 @@ class LoRAConfig(BaseModel):
     lora_dropout: float = 0.05
     bias: str = "none"
     task_type: str = "CAUSAL_LM"
-    target_modules: Optional[list[str]] = None
+    target_modules: list[str] | None = None
 
 
 class HardwareConfig(BaseModel):
-    precision: Optional[Literal["fp32", "fp16", "bf16", "int8", "int4"]] = None
-    quantization: Optional[Literal["none", "8bit", "4bit"]] = None
-    training_method: Optional[Literal["full", "lora", "qlora", "sparse", "asft"]] = None
-    batch_size: Optional[int] = None
-    gradient_checkpointing: Optional[bool] = None
-    cpu_offload: Optional[bool] = None
-    num_workers: Optional[int] = None
-    max_model_size_gb: Optional[float] = None
+    precision: Literal["fp32", "fp16", "bf16", "int8", "int4"] | None = None
+    quantization: Literal["none", "8bit", "4bit"] | None = None
+    training_method: Literal["full", "lora", "qlora", "sparse", "asft"] | None = None
+    batch_size: int | None = None
+    gradient_checkpointing: bool | None = None
+    cpu_offload: bool | None = None
+    num_workers: int | None = None
+    max_model_size_gb: float | None = None
 
 
 class DatasetConfig(BaseModel):
@@ -118,7 +118,7 @@ class APIConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     model_name_or_path: str = "Qwen/Qwen2-0.5B"
-    tokenizer_name: Optional[str] = None
+    tokenizer_name: str | None = None
     cache_dir: str = "./asft_data/model_cache"
     trust_remote_code: bool = True
     max_sequence_length: int = 2048
@@ -164,7 +164,7 @@ class ASFTConfig(BaseSettings):
             Path(d).mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "ASFTConfig":
+    def from_yaml(cls, path: str | Path) -> ASFTConfig:
         import yaml
         with open(path) as f:
             data = yaml.safe_load(f)

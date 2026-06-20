@@ -27,8 +27,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
 from asft.core.interfaces import IVerifier, VerificationResult
 from asft.security.sandbox import validate_code_syntax, verify_math_with_sympy
@@ -254,7 +253,7 @@ class KnowledgeGapDetector:
     Recommends the cheapest resolution strategy (memory → tool → research).
     """
 
-    def detect(self, task: str, context: Optional[str] = None) -> KnowledgeGapResult:
+    def detect(self, task: str, context: str | None = None) -> KnowledgeGapResult:
         """
         Analyse the task to determine if there is a knowledge gap.
 

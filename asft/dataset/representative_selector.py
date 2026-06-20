@@ -5,7 +5,7 @@ Maximizes coverage while minimizing dataset size.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -31,8 +31,8 @@ class RepresentativeSelector:
         self,
         embeddings: np.ndarray,
         cluster_labels: np.ndarray,
-        texts: Optional[List[str]] = None,
-    ) -> Tuple[List[int], Dict[str, Any]]:
+        texts: list[str] | None = None,
+    ) -> tuple[list[int], dict[str, Any]]:
         """
         Select representative indices from each cluster.
 
@@ -41,7 +41,7 @@ class RepresentativeSelector:
             stats: selection statistics
         """
         unique_clusters = sorted(set(cluster_labels))
-        selected: List[int] = []
+        selected: list[int] = []
 
         for cluster_id in unique_clusters:
             if cluster_id == -1:  # DBSCAN noise — keep all noise points
@@ -78,13 +78,13 @@ class RepresentativeSelector:
         )
         return selected, stats
 
-    def _centroid_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> List[int]:
+    def _centroid_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> list[int]:
         centroid = cluster_emb.mean(axis=0)
         distances = np.linalg.norm(cluster_emb - centroid, axis=1)
         nearest = np.argsort(distances)[:self._samples_per_cluster]
         return cluster_idx[nearest].tolist()
 
-    def _diversity_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> List[int]:
+    def _diversity_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> list[int]:
         """Greedy maximum-coverage selection."""
         k = min(self._samples_per_cluster, len(cluster_idx))
         selected_local = [0]  # start with first
@@ -98,7 +98,7 @@ class RepresentativeSelector:
             selected_local.append(next_point)
         return cluster_idx[selected_local].tolist()
 
-    def _hybrid_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> List[int]:
+    def _hybrid_select(self, cluster_emb: np.ndarray, cluster_idx: np.ndarray) -> list[int]:
         """Centroid + diversity: half from each strategy."""
         k = self._samples_per_cluster
         half = max(1, k // 2)

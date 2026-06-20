@@ -1,6 +1,7 @@
 import logging
-import os
+
 from celery import Celery
+
 from asft.core.settings import get_settings
 
 logger = logging.getLogger(__name__)

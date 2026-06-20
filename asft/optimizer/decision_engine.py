@@ -1,10 +1,11 @@
-import uuid
-import time
-import random
 import logging
-from typing import Dict, Any, List, Tuple
+import random
+import time
+import uuid
+from typing import Any
 
 from sqlalchemy.orm import Session
+
 from asft.db.database import SessionLocal
 from asft.db.models import RoutingHistory
 
@@ -67,7 +68,7 @@ class MultiArmedBanditRouter:
         self.epsilon_min = epsilon_min
         self.alpha = alpha
         
-    def _get_historical_utilities(self, db: Session, task_hash: str) -> Tuple[Dict[str, float], int]:
+    def _get_historical_utilities(self, db: Session, task_hash: str) -> tuple[dict[str, float], int]:
         """
         Calculates expected utility for each strategy based on (Accuracy / Cost)
         Returns (utilities_dict, total_samples)
@@ -101,7 +102,7 @@ class MultiArmedBanditRouter:
                 
         return utilities, total_samples
 
-    def select_strategy(self, task_hash: str, available_strategies: List[str] = None) -> Tuple[str, bool]:
+    def select_strategy(self, task_hash: str, available_strategies: list[str] = None) -> tuple[str, bool]:
         """
         Returns (selected_strategy, is_exploration)
         """
@@ -150,7 +151,7 @@ class OptimizerDecisionEngine:
         self.estimator = CostEstimator()
         self.bandit = MultiArmedBanditRouter(epsilon=0.10) # 10% explore, 90% exploit
         
-    def evaluate_workload(self, task_type: str, dataset_size: int, model_size: int) -> Dict[str, Any]:
+    def evaluate_workload(self, task_type: str, dataset_size: int, model_size: int) -> dict[str, Any]:
         """
         Main entry point for determining how to process a new learning objective.
         """

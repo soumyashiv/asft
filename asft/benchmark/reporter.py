@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +19,14 @@ class BenchmarkReporter:
         self._output_dir = Path(output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_html_report(self, records: List[Dict[str, Any]], title: str = "ASFT Benchmark") -> str:
+    def generate_html_report(self, records: list[dict[str, Any]], title: str = "ASFT Benchmark") -> str:
         """Generate a full HTML comparison report."""
         methods = sorted(set(r["method"] for r in records))
         metrics = ["accuracy", "training_time_seconds", "inference_time_ms",
                    "peak_memory_mb", "hallucination_rate", "param_efficiency"]
 
         # Compute averages per method
-        stats: Dict[str, Dict[str, float]] = {}
+        stats: dict[str, dict[str, float]] = {}
         for method in methods:
             method_records = [r for r in records if r["method"] == method]
             stats[method] = {
@@ -101,7 +101,7 @@ class BenchmarkReporter:
         logger.info("HTML report saved: %s", html_path)
         return str(html_path)
 
-    def generate_json_report(self, records: List[Dict[str, Any]]) -> str:
+    def generate_json_report(self, records: list[dict[str, Any]]) -> str:
         """Save all records + summary as JSON."""
         json_path = self._output_dir / "benchmark_results.json"
         with open(json_path, "w") as f:
@@ -110,8 +110,8 @@ class BenchmarkReporter:
         return str(json_path)
 
     def improvement_over_baseline(
-        self, records: List[Dict], baseline: str = "full_ft", target: str = "asft"
-    ) -> Dict[str, Any]:
+        self, records: list[dict], baseline: str = "full_ft", target: str = "asft"
+    ) -> dict[str, Any]:
         """Compute improvement % of target method over baseline."""
         baseline_recs = [r for r in records if r["method"] == baseline]
         target_recs = [r for r in records if r["method"] == target]

@@ -3,14 +3,14 @@ ASFT Rapid Validation Runner
 Executes 10-minute accelerated tests for Categories 2, 5, 6, 9, 10, 11, 13, 15
 """
 import asyncio
-import httpx
 import logging
 import os
-import shutil
 import sqlite3
 import time
 import uuid
-from typing import Dict, Any
+from typing import Any
+
+import httpx
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("rapid_qa")
@@ -116,7 +116,6 @@ async def cat5_dataset_compression():
 # CATEGORY 6 & 13: SKILL PACKS & PLUGINS
 # ==========================================
 async def cat6_skill_packs():
-    from asft.skills.skill_router import SkillRouter
     import tempfile
     
     with tempfile.TemporaryDirectory() as d:
@@ -146,7 +145,7 @@ async def cat6_skill_packs():
                 spec.loader.exec_module(mod)
                 skill = mod.get_skill()
                 loaded.append(p)
-            except Exception as e:
+            except Exception:
                 failed.append(p)
                 
         return {"loaded": len(loaded), "failed": len(failed)}

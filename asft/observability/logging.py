@@ -11,7 +11,7 @@ import logging
 import sys
 import traceback
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 
 class JSONFormatter(logging.Formatter):
@@ -23,7 +23,7 @@ class JSONFormatter(logging.Formatter):
         self.service_name = service_name
 
     def format(self, record: logging.LogRecord) -> str:
-        log_obj: Dict[str, Any] = {
+        log_obj: dict[str, Any] = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat() + "Z",
             "level": record.levelname,
             "service": self.service_name,

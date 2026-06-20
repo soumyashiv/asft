@@ -5,10 +5,10 @@ and returns the highest-confidence answer. Implements self-consistency reasoning
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from asft.accuracy.confidence_scorer import ConfidenceScorer, ConfidenceScore
+from asft.accuracy.confidence_scorer import ConfidenceScore, ConfidenceScorer
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 class ReasoningResult:
     best_output: str
     best_score: ConfidenceScore
-    all_outputs: List[str] = field(default_factory=list)
-    all_scores: List[ConfidenceScore] = field(default_factory=list)
-    consensus_output: Optional[str] = None
+    all_outputs: list[str] = field(default_factory=list)
+    all_scores: list[ConfidenceScore] = field(default_factory=list)
+    consensus_output: str | None = None
     passes_used: int = 1
     task_type: str = "general"
 
@@ -54,7 +54,7 @@ class MultiPassReasoner:
 
     def reason(
         self,
-        generate_fn: Callable[[int], List[str]],
+        generate_fn: Callable[[int], list[str]],
         task_type: str = "general",
     ) -> ReasoningResult:
         """
@@ -155,7 +155,7 @@ class MultiPassReasoner:
             task_type=task_type,
         )
 
-    def _find_consensus(self, outputs: List[str]) -> int:
+    def _find_consensus(self, outputs: list[str]) -> int:
         """Find the output with highest token overlap to all others."""
         def token_overlap(a: str, b: str) -> float:
             ta, tb = set(a.lower().split()), set(b.lower().split())

@@ -4,16 +4,12 @@ Commands: init, train, skill, memory, benchmark, status, api, compress
 """
 from __future__ import annotations
 
-import json
-import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich import print as rprint
 
 app = typer.Typer(
     name="asft",
@@ -113,7 +109,7 @@ def train(
     steps: int = typer.Option(100, "--steps", help="Max training steps"),
     sparsity: float = typer.Option(0.95, "--sparsity", help="Sparsity ratio (0–1)"),
     output_dir: str = typer.Option("./asft_data/output", "--output", "-o"),
-    config_path: Optional[str] = typer.Option(None, "--config", "-c"),
+    config_path: str | None = typer.Option(None, "--config", "-c"),
 ):
     """[bold]Train[/bold] a model using ASFT sparse fine-tuning."""
     from asft.core.config import ASFTConfig
@@ -140,8 +136,9 @@ def train(
         raise typer.Exit(1)
 
     try:
-        from asft.sparse.lora_adapter import load_quantized_model
         from transformers import AutoTokenizer
+
+        from asft.sparse.lora_adapter import load_quantized_model
 
         quant = cfg.hardware.quantization or "none"
         with console.status(f"[bold]Loading {model}...[/bold]"):
@@ -152,7 +149,7 @@ def train(
             from asft.sparse.lora_adapter import LoRAAdapter
             adapter = LoRAAdapter(cfg.lora)
             trained_model = adapter.wrap(base_model, quantization=quant if method == "qlora" else None)
-            console.print(f"[bold green]✓[/bold green] LoRA adapter applied")
+            console.print("[bold green]✓[/bold green] LoRA adapter applied")
         else:
             trained_model = base_model
 
@@ -199,13 +196,12 @@ def compress(
 @skill_app.command("list")
 def skill_list():
     """List all registered skill packs."""
-    from asft.core.registry import registry
-    from asft.skills.packs.coding import CodingSkillPack
-    from asft.skills.packs.research import ResearchSkillPack
-    from asft.skills.packs.planning import PlanningSkillPack
-    from asft.skills.packs.mathematics import MathematicsSkillPack
-    from asft.skills.packs.trading import TradingSkillPack
     from asft.skills.packs.automation import AutomationSkillPack
+    from asft.skills.packs.coding import CodingSkillPack
+    from asft.skills.packs.mathematics import MathematicsSkillPack
+    from asft.skills.packs.planning import PlanningSkillPack
+    from asft.skills.packs.research import ResearchSkillPack
+    from asft.skills.packs.trading import TradingSkillPack
 
     packs = [CodingSkillPack(), ResearchSkillPack(), PlanningSkillPack(),
              MathematicsSkillPack(), TradingSkillPack(), AutomationSkillPack()]
@@ -224,13 +220,13 @@ def skill_list():
 def skill_route(task: str = typer.Argument(..., help="Task to route")):
     """Route a task to the best skill pack."""
     from asft.core.registry import registry
-    from asft.skills.skill_router import SkillRouter
-    from asft.skills.packs.coding import CodingSkillPack
-    from asft.skills.packs.research import ResearchSkillPack
-    from asft.skills.packs.planning import PlanningSkillPack
-    from asft.skills.packs.mathematics import MathematicsSkillPack
-    from asft.skills.packs.trading import TradingSkillPack
     from asft.skills.packs.automation import AutomationSkillPack
+    from asft.skills.packs.coding import CodingSkillPack
+    from asft.skills.packs.mathematics import MathematicsSkillPack
+    from asft.skills.packs.planning import PlanningSkillPack
+    from asft.skills.packs.research import ResearchSkillPack
+    from asft.skills.packs.trading import TradingSkillPack
+    from asft.skills.skill_router import SkillRouter
 
     for Pack in [CodingSkillPack, ResearchSkillPack, PlanningSkillPack,
                  MathematicsSkillPack, TradingSkillPack, AutomationSkillPack]:
@@ -254,7 +250,7 @@ def skill_route(task: str = typer.Argument(..., help="Task to route")):
 @memory_app.command("query")
 def memory_query(
     query: str = typer.Argument(...),
-    config: Optional[str] = typer.Option(None, "--config", "-c"),
+    config: str | None = typer.Option(None, "--config", "-c"),
 ):
     """Query the memory system."""
     from asft.core.config import ASFTConfig
@@ -274,7 +270,7 @@ def memory_query(
 
 
 @memory_app.command("stats")
-def memory_stats(config: Optional[str] = typer.Option(None, "--config", "-c")):
+def memory_stats(config: str | None = typer.Option(None, "--config", "-c")):
     """Show memory system statistics."""
     from asft.core.config import ASFTConfig
     cfg = ASFTConfig.from_yaml(config) if config and Path(config).exists() else ASFTConfig()
@@ -313,9 +309,9 @@ def benchmark_run(
     model: str = typer.Option("Qwen/Qwen2-0.5B", "--model", "-m", help="Model path"),
 ):
     """Dispatch a benchmark validation job to the Celery queue."""
-    from asft.workers.tasks import run_benchmark_task
     import uuid
-    import time
+
+    from asft.workers.tasks import run_benchmark_task
     
     claims = ["accuracy", "resources"] if claim == "all" else [claim]
     
@@ -337,9 +333,10 @@ def benchmark_run(
 @benchmark_app.command("history")
 def benchmark_history():
     """View historical benchmark results."""
+    from datetime import datetime
+
     from asft.db.database import SessionLocal
     from asft.db.models import BenchmarkResult
-    from datetime import datetime
     
     db = SessionLocal()
     try:
@@ -379,6 +376,7 @@ def benchmark_history():
 def db_upgrade(revision: str = typer.Argument("head", help="Revision to upgrade to (default: head)")):
     """Run Alembic database migrations."""
     from alembic.config import Config
+
     from alembic import command
     console.print(f"[bold cyan]Upgrading database to {revision}...[/bold cyan]")
     try:

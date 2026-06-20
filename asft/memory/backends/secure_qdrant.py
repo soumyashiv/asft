@@ -1,8 +1,8 @@
-import os
 import logging
-from typing import Optional, Dict
-from pydantic import BaseModel
+import os
+
 import httpx
+from pydantic import BaseModel
 
 from asft.core.interfaces import IMemoryStore
 
@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 class QdrantConfig(BaseModel):
     url: str
-    api_key: Optional[str] = None
-    tls_cert_path: Optional[str] = None
-    tls_key_path: Optional[str] = None
+    api_key: str | None = None
+    tls_cert_path: str | None = None
+    tls_key_path: str | None = None
 
 class SecureQdrantAdapter(IMemoryStore):
     """
@@ -20,7 +20,7 @@ class SecureQdrantAdapter(IMemoryStore):
     Supports TLS, mTLS, and API keys. Integration with Kubernetes/Vault
     is achieved via environment variables injected into the Pods.
     """
-    def __init__(self, config: Optional[QdrantConfig] = None):
+    def __init__(self, config: QdrantConfig | None = None):
         if config is None:
             config = QdrantConfig(
                 url=os.getenv("QDRANT_URL", "http://localhost:6333"),
@@ -102,13 +102,13 @@ class SecureQdrantAdapter(IMemoryStore):
         return self._is_healthy
 
     # IMemoryStore Implementation
-    async def add(self, content: str, metadata: Optional[Dict] = None) -> str:
+    async def add(self, content: str, metadata: dict | None = None) -> str:
         if not self._is_healthy:
             raise ConnectionError("Cannot perform operation: SecureQdrantAdapter is unhealthy.")
         logger.info("Adding memory to SecureQdrantAdapter")
         return "mock_id"
 
-    async def update(self, item_id: str, content: str, metadata: Optional[Dict] = None) -> bool:
+    async def update(self, item_id: str, content: str, metadata: dict | None = None) -> bool:
         if not self._is_healthy:
             raise ConnectionError("Cannot perform operation: SecureQdrantAdapter is unhealthy.")
         return True
@@ -123,7 +123,7 @@ class SecureQdrantAdapter(IMemoryStore):
             raise ConnectionError("Cannot perform operation: SecureQdrantAdapter is unhealthy.")
         return []
 
-    async def batch_insert(self, contents: list[str], metadatas: Optional[list[Dict]] = None) -> list[str]:
+    async def batch_insert(self, contents: list[str], metadatas: list[dict] | None = None) -> list[str]:
         if not self._is_healthy:
             raise ConnectionError("Cannot perform operation: SecureQdrantAdapter is unhealthy.")
         return []

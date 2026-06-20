@@ -45,7 +45,6 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,7 @@ class ComputeBudgetRouter:
         self,
         task: str,
         domain: str = "general",
-        budget_tokens: Optional[int] = None,
+        budget_tokens: int | None = None,
     ) -> ComputeDecision:
         """
         Classify the task and return a compute allocation decision.
@@ -187,16 +186,16 @@ class ComputeBudgetRouter:
         elif score >= -2:
             return ComputeTier.LOW, 0.75, f"Low complexity ({low_hits} simple-task signals)"
         else:
-            return ComputeTier.MINIMAL, 0.80, f"Minimal complexity (likely factual lookup)"
+            return ComputeTier.MINIMAL, 0.80, "Minimal complexity (likely factual lookup)"
 
-    def batch_route(self, tasks: List[str], domain: str = "general") -> List[ComputeDecision]:
+    def batch_route(self, tasks: list[str], domain: str = "general") -> list[ComputeDecision]:
         """Route multiple tasks and return sorted by tier (easy first) for efficient batching."""
         decisions = [self.route(task, domain) for task in tasks]
         tier_order = list(ComputeTier)
         decisions.sort(key=lambda d: tier_order.index(d.tier))
         return decisions
 
-    def estimate_compute_savings(self, tasks: List[str]) -> dict:
+    def estimate_compute_savings(self, tasks: list[str]) -> dict:
         """
         Estimate compute savings vs always using MAXIMUM tier.
         Returns fraction of tokens saved and tier distribution.

@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ ACTION_REJECT = "reject"  # budget exceeded or dataset too small
 
 # Expected accuracy per tier (median empirical, task-type-agnostic)
 # Source: ASFT benchmark suite + literature review
-_TIER_ACCURACY: Dict[str, float] = {
+_TIER_ACCURACY: dict[str, float] = {
     ACTION_USE_WORKING_MEMORY: 0.95,   # If it's in memory, recall is near-perfect
     ACTION_USE_EPISODIC_MEMORY: 0.80,
     ACTION_USE_SEMANTIC_MEMORY: 0.78,
@@ -73,7 +73,7 @@ _TIER_ACCURACY: Dict[str, float] = {
 }
 
 # Cost in USD per 1000 queries for inference-time options
-_TIER_COST_PER_K: Dict[str, float] = {
+_TIER_COST_PER_K: dict[str, float] = {
     ACTION_USE_WORKING_MEMORY: 0.00,
     ACTION_USE_EPISODIC_MEMORY: 0.001,
     ACTION_USE_SEMANTIC_MEMORY: 0.001,
@@ -94,8 +94,8 @@ class OptimizerDecision:
     reasoning: str
     estimated_cost_usd: float
     expected_accuracy: float
-    alternatives: List[Dict[str, Any]] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    alternatives: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 class AutoOptimizer:
@@ -123,7 +123,7 @@ class AutoOptimizer:
         task: str,
         domain: str = "general",
         target_accuracy: float = 0.80,
-        budget_usd: Optional[float] = None,
+        budget_usd: float | None = None,
         model_name: str = "Qwen/Qwen2-7B",
         dataset_size: int = 1_000,
         allow_training: bool = True,
@@ -148,8 +148,8 @@ class AutoOptimizer:
             domain, target_accuracy, f"${budget_usd:.2f}" if budget_usd else "unlimited"
         )
 
-        warnings: List[str] = []
-        alternatives: List[Dict[str, Any]] = []
+        warnings: list[str] = []
+        alternatives: list[dict[str, Any]] = []
 
         # ----------------------------------------------------------------
         # Tier 1–3: Memory tiers (zero cost)
@@ -375,8 +375,8 @@ class AutoOptimizer:
     @staticmethod
     def _make_decision(
         action: str, reasoning: str, cost: float, accuracy: float,
-        target: float, budget: Optional[float],
-        alternatives: List, warnings: List,
+        target: float, budget: float | None,
+        alternatives: list, warnings: list,
     ) -> OptimizerDecision:
         """Create a decision, checking budget constraint."""
         if budget is not None and cost > budget and cost > 0.01:

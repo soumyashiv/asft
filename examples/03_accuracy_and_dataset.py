@@ -3,8 +3,9 @@ ASFT Example 3 — Dataset Compression (no GPU required)
 =======================================================
 Demonstrates the full dedup → cluster → select pipeline on a synthetic dataset.
 """
-import json, tempfile, os
-from pathlib import Path
+import json
+import os
+import tempfile
 
 print("=" * 60)
 print("ASFT — Example 3: Dataset Compression")
@@ -47,6 +48,7 @@ print(f"Written to: {tmp_path}")
 # Run compression (without clustering to avoid sentence-transformers dependency)
 print("\n[1] Running deduplication...")
 from asft.dataset.deduplicator import DatasetDeduplicator
+
 try:
     deduper = DatasetDeduplicator(threshold=0.82, num_perm=64)
     texts = SAMPLES.copy()
@@ -61,6 +63,7 @@ except ImportError:
 
 print("\n[2] Confidence scoring on skill outputs...")
 from asft.accuracy.confidence_scorer import ConfidenceScorer
+
 scorer = ConfidenceScorer()
 test_outputs = [
     "The answer is definitely X.",
@@ -73,8 +76,10 @@ for o in test_outputs:
     print(f"  [{s.label:>6}] {s.composite:.3f} — {o[:50]}...")
 
 print("\n[3] Multi-pass reasoning demo (no model)...")
-from asft.accuracy.multi_pass_reasoner import MultiPassReasoner
 import random
+
+from asft.accuracy.multi_pass_reasoner import MultiPassReasoner
+
 
 def mock_generate(n: int):
     templates = [
@@ -92,6 +97,7 @@ print(f"  Passes used: {result.passes_used}")
 
 print("\n[4] Self-critique demo (no model)...")
 from asft.accuracy.self_critique import SelfCritiqueEngine
+
 critic = SelfCritiqueEngine(max_rounds=1)
 bad_output = "This is definitely proven by all experts. The answer is X. Therefore the result is Y."
 result = critic.critique(bad_output, original_task="Solve X", generate_fn=None)

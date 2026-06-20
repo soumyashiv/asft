@@ -59,8 +59,7 @@ import logging
 import math
 import random
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +75,7 @@ class SelectionReport:
     actual_fraction: float
     avg_score_kept: float
     avg_score_rejected: float
-    warnings: List[str]
+    warnings: list[str]
 
     @property
     def reduction_percent(self) -> float:
@@ -125,10 +124,10 @@ class AdaptiveSampleSelector:
 
     def select(
         self,
-        samples: List[str],
-        labels: Optional[List[Any]] = None,
+        samples: list[str],
+        labels: list[Any] | None = None,
         text_field: str = "text",
-    ) -> Tuple[List[str], SelectionReport]:
+    ) -> tuple[list[str], SelectionReport]:
         """
         Select the most informative subset of samples.
 
@@ -214,7 +213,7 @@ class AdaptiveSampleSelector:
     # Scoring methods
     # ------------------------------------------------------------------
 
-    def _score_perplexity(self, texts: List[str]) -> List[float]:
+    def _score_perplexity(self, texts: list[str]) -> list[float]:
         """
         Score each sample by its perplexity under the base model.
 
@@ -255,7 +254,7 @@ class AdaptiveSampleSelector:
 
         return scores
 
-    def _score_el2n(self, texts: List[str], labels: List[Any]) -> List[float]:
+    def _score_el2n(self, texts: list[str], labels: list[Any]) -> list[float]:
         """
         Error L2-Norm scoring (Paul et al. 2021).
 
@@ -308,7 +307,7 @@ class AdaptiveSampleSelector:
         return scores
 
     @staticmethod
-    def _top_k_idx(scores: List[float], k: int) -> List[int]:
+    def _top_k_idx(scores: list[float], k: int) -> list[int]:
         """Return indices of top-k highest scores, sorted ascending for reproducibility."""
         idx_score = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
         return sorted(i for i, _ in idx_score[:k])

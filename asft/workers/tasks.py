@@ -1,19 +1,20 @@
+import json
 import logging
 import time
-import json
-from typing import Dict, Any
+from typing import Any
 
 import redis
 from celery import shared_task
-from asft.training.peft_trainer import PEFTTrainer
+
 from asft.core.interfaces import TrainingConfig
-from asft.db.database import SessionLocal
-from asft.db.models import Job
 from asft.core.settings import get_settings
+from asft.db.database import SessionLocal
+from asft.db.models import Job, RoutingHistory
+from asft.training.peft_trainer import PEFTTrainer
 
 logger = logging.getLogger(__name__)
 
-def _publish_event(job_id: str, status: str, payload: Dict[str, Any] = None):
+def _publish_event(job_id: str, status: str, payload: dict[str, Any] = None):
     try:
         settings = get_settings()
         r = redis.from_url(settings.celery_broker_url)
@@ -26,7 +27,7 @@ def _publish_event(job_id: str, status: str, payload: Dict[str, Any] = None):
     except Exception as e:
         logger.error("Failed to publish event for job %s: %s", job_id, e)
 
-def _update_job_status(job_id: str, status: str, result: Dict[str, Any] = None, error: str = None):
+def _update_job_status(job_id: str, status: str, result: dict[str, Any] = None, error: str = None):
     db = SessionLocal()
     try:
         job = db.query(Job).filter(Job.id == job_id).first()
@@ -46,7 +47,7 @@ def _update_job_status(job_id: str, status: str, result: Dict[str, Any] = None, 
     _publish_event(job_id, status, {"result": result, "error": error})
 
 @shared_task(bind=True, name="asft.workers.tasks.run_training_job")
-def run_training_job(self, config_dict: Dict[str, Any], job_id: str = None, routing_id: str = None) -> Dict[str, Any]:
+def run_training_job(self, config_dict: dict[str, Any], job_id: str = None, routing_id: str = None) -> dict[str, Any]:
     """
     Celery task that executes a PEFT training job.
     The config_dict is a serialized TrainingConfig.
@@ -109,7 +110,7 @@ def run_training_job(self, config_dict: Dict[str, Any], job_id: str = None, rout
         }
 
 @shared_task(bind=True, name="asft.workers.tasks.run_compression_job")
-def run_compression_job(self, payload: Dict[str, Any], job_id: str = None) -> Dict[str, Any]:
+def run_compression_job(self, payload: dict[str, Any], job_id: str = None) -> dict[str, Any]:
     """
     Celery task that executes dataset compression.
     """
@@ -149,7 +150,7 @@ def run_compression_job(self, payload: Dict[str, Any], job_id: str = None) -> Di
         }
 
 @shared_task(bind=True, name="asft.workers.tasks.run_benchmark_task")
-def run_benchmark_task(self, claim_type: str, model_path: str, kwargs: Dict[str, Any] = None, job_id: str = None, routing_id: str = None) -> Dict[str, Any]:
+def run_benchmark_task(self, claim_type: str, model_path: str, kwargs: dict[str, Any] = None, job_id: str = None, routing_id: str = None) -> dict[str, Any]:
     """
     Celery task that executes a benchmark validation job.
     Updates the RoutingHistory if a routing_id is provided, forming the Optimizer feedback loop.

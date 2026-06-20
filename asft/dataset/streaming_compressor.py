@@ -2,17 +2,16 @@
 Streaming Dataset Compressor — Bounded Memory Implementation (V3)
 Handles infinitely large datasets within < 2GB RAM.
 """
-import os
 import json
 import logging
-import psutil
+import os
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
-import numpy as np
+import faiss
+import psutil
 from datasets import load_dataset
 from sklearn.cluster import MiniBatchKMeans
-import faiss
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,7 @@ class StreamingCompressor:
         self.faiss_index = faiss.IndexFlatL2(self.embedding_dim)
         
         # Reservoir sampling: keep a fixed number of representative items per cluster
-        self.reservoir: Dict[int, List[Dict[str, Any]]] = {i: [] for i in range(self.n_clusters)}
+        self.reservoir: dict[int, list[dict[str, Any]]] = {i: [] for i in range(self.n_clusters)}
         self.cluster_counts = {i: 0 for i in range(self.n_clusters)}
         
         # Memory monitoring
@@ -100,7 +99,7 @@ class StreamingCompressor:
         text_field: str = "text",
         embedding_model: str = "all-MiniLM-L6-v2",
         output_name: str = "compressed_stream",
-    ) -> Tuple[List[str], Dict[str, Any]]:
+    ) -> tuple[list[str], dict[str, Any]]:
         """
         Process the dataset incrementally.
         """
@@ -172,7 +171,7 @@ class StreamingCompressor:
         # The actual compressed data is purely on disk.
         return [], report
 
-    def _process_batch(self, texts: List[str], metas: List[Dict[str, Any]], model):
+    def _process_batch(self, texts: list[str], metas: list[dict[str, Any]], model):
         """Embeds, deduplicates, clusters, and reservoir-samples a single batch."""
         import random
         embeddings = model.encode(texts, convert_to_numpy=True, show_progress_bar=False)

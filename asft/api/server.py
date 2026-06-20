@@ -27,9 +27,9 @@ import asyncio
 import logging
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional
+from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -38,7 +38,6 @@ from asft.api.middleware import (
     RequestLoggingMiddleware,
     SecurityHeadersMiddleware,
 )
-from asft.security.rbac import require_admin, require_researcher, require_agent, require_readonly
 from asft.api.schemas import (
     CompressRequest,
     CompressResponse,
@@ -56,6 +55,7 @@ from asft.core.exceptions import ASFTError, JobNotFoundError
 from asft.core.hardware_profiler import HardwareProfiler
 from asft.core.registry import Registry
 from asft.core.settings import get_settings
+from asft.security.rbac import require_agent, require_readonly, require_researcher
 from asft.training.job_store import create_job_store
 from asft.training.peft_trainer import PEFTTrainer
 
@@ -72,7 +72,7 @@ profiler = HardwareProfiler()
 # Worker functions — must be top-level picklable functions for ProcessPool
 # ---------------------------------------------------------------------------
 
-def _training_worker(job_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def _training_worker(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """
     Runs in an isolated worker process.
     Imports are deferred to inside the function so they happen in the worker,
@@ -87,7 +87,7 @@ def _training_worker(job_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     return result.__dict__
 
 
-def _compression_worker(job_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+def _compression_worker(job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     """
     Dataset compression runs in an isolated worker process.
     Uses the correct DatasetCompressor API (compress_jsonl).
@@ -113,7 +113,7 @@ def _compression_worker(job_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 # Background coroutines — submit to process pool, then update job store
 # ---------------------------------------------------------------------------
 
-async def run_training_job(job_id: str, payload: Dict[str, Any]) -> None:
+async def run_training_job(job_id: str, payload: dict[str, Any]) -> None:
     """
     Submit training to the Celery worker queue.
     """
@@ -129,7 +129,7 @@ async def run_training_job(job_id: str, payload: Dict[str, Any]) -> None:
         await job_store.update_status(job_id, "failed", error=str(e))
 
 
-async def run_compression_job(job_id: str, payload: Dict[str, Any]) -> None:
+async def run_compression_job(job_id: str, payload: dict[str, Any]) -> None:
     """Submit dataset compression to the Celery queue."""
     await job_store.update_status(job_id, "queued")
     logger.info("Compression job %s submitted to Celery queue", job_id)
@@ -236,6 +236,7 @@ app.add_middleware(
 app.add_middleware(RequestLoggingMiddleware)
 
 from asft.api.websockets import router as websocket_router
+
 app.include_router(websocket_router)
 
 # ---------------------------------------------------------------------------
@@ -246,6 +247,7 @@ app.include_router(websocket_router)
 async def health_check():
     """Public health check. No authentication required."""
     import time
+
     from asft import __version__
     return HealthResponse(
         version=__version__,
@@ -254,6 +256,7 @@ async def health_check():
 
 
 from fastapi import Depends
+
 
 @app.post("/api/v1/estimate", response_model=EstimateResponse, tags=["optimizer"], dependencies=[Depends(require_researcher)])
 async def estimate_training_cost(request: EstimateRequest):
@@ -346,8 +349,8 @@ async def get_job_status(job_id: str):
 
 @app.get("/api/v1/jobs", tags=["jobs"], dependencies=[Depends(require_readonly)])
 async def list_jobs(
-    job_type: Optional[str] = None,
-    status: Optional[str] = None,
+    job_type: str | None = None,
+    status: str | None = None,
     limit: int = 50,
 ):
     """List recent jobs, optionally filtered by type and status."""
@@ -357,4 +360,5 @@ async def list_jobs(
 
 # Initialize start time
 import time
+
 app.state.start_time = time.time()

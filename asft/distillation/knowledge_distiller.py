@@ -57,7 +57,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +101,8 @@ class DistillationResult:
     teacher_param_billions: float = 0.0
     student_param_billions: float = 0.0
     compression_ratio: float = 0.0       # teacher/student param count
-    error_message: Optional[str] = None
-    warnings: List[str] = field(default_factory=list)
+    error_message: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 class KnowledgeDistiller:
@@ -194,7 +194,7 @@ class KnowledgeDistiller:
     # Private implementation
     # ------------------------------------------------------------------
 
-    def _load_models(self, config: DistillationConfig, warnings: List[str]):
+    def _load_models(self, config: DistillationConfig, warnings: list[str]):
         """Load teacher (frozen) and student (trainable)."""
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -207,7 +207,7 @@ class KnowledgeDistiller:
         if teacher_tok.pad_token is None:
             teacher_tok.pad_token = teacher_tok.eos_token
 
-        teacher_kwargs: Dict[str, Any] = {
+        teacher_kwargs: dict[str, Any] = {
             "pretrained_model_name_or_path": config.teacher_model_name,
             "trust_remote_code": False,
             "torch_dtype": torch.float16,
@@ -261,7 +261,6 @@ class KnowledgeDistiller:
             return self._dummy_dataloader(tokenizer, config)
         try:
             from datasets import load_dataset
-            import torch
             from torch.utils.data import DataLoader
 
             ext = Path(config.dataset_path).suffix
@@ -288,7 +287,6 @@ class KnowledgeDistiller:
 
     def _dummy_dataloader(self, tokenizer, config: DistillationConfig):
         """Generate synthetic data for testing distillation pipeline."""
-        import torch
         from torch.utils.data import DataLoader, TensorDataset
 
         dummy_text = "The quick brown fox jumps over the lazy dog. " * 20

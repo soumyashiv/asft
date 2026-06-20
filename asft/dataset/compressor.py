@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ class DatasetCompressor:
         reduction_ratio = getattr(config, "cluster_reduction_ratio", 0.3) if config else 0.3
         output_dir = getattr(config, "compressed_output_dir", "./asft_data/datasets") if config else "./asft_data/datasets"
 
-        from asft.dataset.deduplicator import DatasetDeduplicator
         from asft.dataset.clusterer import DatasetClusterer
+        from asft.dataset.deduplicator import DatasetDeduplicator
         from asft.dataset.representative_selector import RepresentativeSelector
 
         self._deduplicator = DatasetDeduplicator(threshold=threshold, num_perm=num_perm)
@@ -42,11 +42,11 @@ class DatasetCompressor:
 
     def compress(
         self,
-        texts: List[str],
-        metadata: Optional[List[Dict]] = None,
+        texts: list[str],
+        metadata: list[dict] | None = None,
         embedding_model: str = "all-MiniLM-L6-v2",
         output_name: str = "compressed_dataset",
-    ) -> Tuple[List[str], Dict[str, Any]]:
+    ) -> tuple[list[str], dict[str, Any]]:
         """
         Full compression pipeline.
 
@@ -60,7 +60,7 @@ class DatasetCompressor:
             compressed_texts: the compressed dataset
             report: full pipeline stats
         """
-        report: Dict[str, Any] = {"pipeline": []}
+        report: dict[str, Any] = {"pipeline": []}
         original_count = len(texts)
         ids = [str(i) for i in range(len(texts))]
 
@@ -121,7 +121,7 @@ class DatasetCompressor:
         )
         return compressed_texts, report
 
-    def compress_jsonl(self, input_path: str, text_field: str = "text", **kwargs) -> Tuple[List[str], Dict]:
+    def compress_jsonl(self, input_path: str, text_field: str = "text", **kwargs) -> tuple[list[str], dict]:
         """Load a JSONL dataset, compress it, and save."""
         texts = []
         meta = []

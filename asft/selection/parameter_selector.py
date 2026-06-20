@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +75,10 @@ class ParameterImportanceReport:
     total_params: int
     selected_params: int
     trainable_fraction: float
-    layer_scores: Dict[str, float] = field(default_factory=dict)
-    top_layers: List[str] = field(default_factory=list)
-    selected_param_names: Set[str] = field(default_factory=set)
-    warnings: List[str] = field(default_factory=list)
+    layer_scores: dict[str, float] = field(default_factory=dict)
+    top_layers: list[str] = field(default_factory=list)
+    selected_param_names: set[str] = field(default_factory=set)
+    warnings: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
         return (
@@ -181,7 +181,7 @@ class ParameterSelector:
     # Scoring strategies
     # ------------------------------------------------------------------
 
-    def _score_magnitude(self) -> Dict[str, float]:
+    def _score_magnitude(self) -> dict[str, float]:
         """Magnitude-based importance: |weight|.mean(). O(N), no data needed."""
         return {
             name: float(param.data.abs().mean())
@@ -189,11 +189,11 @@ class ParameterSelector:
             if param.requires_grad
         }
 
-    def _score_gradient(self, dataloader) -> Dict[str, float]:
+    def _score_gradient(self, dataloader) -> dict[str, float]:
         """Single-batch gradient norm scoring."""
         return self._run_backward_scoring(dataloader, n_steps=1, score_fn="grad_norm")
 
-    def _score_fisher(self, dataloader) -> Dict[str, float]:
+    def _score_fisher(self, dataloader) -> dict[str, float]:
         """
         Fisher Information diagonal approximation.
         F_i ≈ mean(g_i²) over n_probe_steps mini-batches.
@@ -203,7 +203,7 @@ class ParameterSelector:
             dataloader, n_steps=self._n_probe_steps, score_fn="fisher"
         )
 
-    def _score_taylor(self, dataloader) -> Dict[str, float]:
+    def _score_taylor(self, dataloader) -> dict[str, float]:
         """
         Taylor expansion importance: importance_i = |g_i · θ_i|.
         Approximates the change in loss if parameter θ_i were zeroed.
@@ -218,12 +218,11 @@ class ParameterSelector:
         dataloader,
         n_steps: int,
         score_fn: str,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Shared backward-pass scoring loop."""
-        import torch
 
         self._model.train()
-        accum: Dict[str, float] = {
+        accum: dict[str, float] = {
             name: 0.0
             for name, p in self._model.named_parameters()
             if p.requires_grad
@@ -273,7 +272,7 @@ class ParameterSelector:
     ) -> ParameterImportanceReport:
         """Build report from ActivationAnalyzer output."""
         top_layers = set(getattr(activation_report, "top_layers", []))
-        selected: Set[str] = set()
+        selected: set[str] = set()
         for name, _ in self._model.named_parameters():
             if any(layer in name for layer in top_layers):
                 selected.add(name)
@@ -287,9 +286,9 @@ class ParameterSelector:
 
     def _build_report(
         self,
-        scores: Dict[str, float],
+        scores: dict[str, float],
         keep_fraction: float,
-        warnings: List[str],
+        warnings: list[str],
     ) -> ParameterImportanceReport:
         """Convert scores to a selection report."""
         if not scores:
@@ -311,10 +310,10 @@ class ParameterSelector:
 
     def _build_report_from_selection(
         self,
-        selected: Set[str],
-        layer_scores: Dict[str, float],
+        selected: set[str],
+        layer_scores: dict[str, float],
         method: str,
-        warnings: List[str],
+        warnings: list[str],
     ) -> ParameterImportanceReport:
         param_sizes = {
             name: p.numel()

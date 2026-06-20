@@ -8,8 +8,7 @@ Design principles:
 """
 from __future__ import annotations
 
-from typing import Any, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Base
@@ -22,7 +21,7 @@ class ASFTError(Exception):
     code: str = "asft_error"
     status_code: int = 500
 
-    def __init__(self, message: str, *, detail: Optional[Any] = None) -> None:
+    def __init__(self, message: str, *, detail: Any | None = None) -> None:
         super().__init__(message)
         self.message = message
         self.detail = detail

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any
+from typing import Any
 
 try:
     import lm_eval
@@ -19,7 +19,7 @@ class LmEvalHarnessAdapter(IEvaluationHarness):
         if lm_eval is None:
             raise ImportError("lm_eval package is required. Install with: pip install lm-eval")
 
-    async def evaluate(self, model_path: str, tasks: List[str]) -> Dict[str, Any]:
+    async def evaluate(self, model_path: str, tasks: list[str]) -> dict[str, Any]:
         """
         Run lm-evaluation-harness tasks on the specified model.
         Note: This is an async wrapper around a blocking synchronous operation.

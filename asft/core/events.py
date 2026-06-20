@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine, Dict, List, Set, Type
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class BaseEvent:
 class JobCompletedEvent(BaseEvent):
     job_id: str
     job_type: str
-    result: Dict[str, Any]
+    result: dict[str, Any]
 
 
 @dataclass
@@ -60,9 +61,9 @@ class EventBus:
     """
     
     def __init__(self):
-        self._subscribers: Dict[Type[BaseEvent], Set[EventHandler]] = {}
+        self._subscribers: dict[type[BaseEvent], set[EventHandler]] = {}
         
-    def subscribe(self, event_type: Type[BaseEvent], handler: EventHandler) -> None:
+    def subscribe(self, event_type: type[BaseEvent], handler: EventHandler) -> None:
         """Register a coroutine handler for an event type."""
         if event_type not in self._subscribers:
             self._subscribers[event_type] = set()

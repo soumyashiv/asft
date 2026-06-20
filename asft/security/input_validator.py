@@ -15,7 +15,6 @@ import logging
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import Optional
 
 from asft.core.exceptions import InputValidationError, PromptInjectionError
 
@@ -72,7 +71,7 @@ def _strip_control_chars(text: str) -> str:
     return re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", text)
 
 
-def _check_injection(text: str) -> Optional[str]:
+def _check_injection(text: str) -> str | None:
     """
     Scan text for prompt injection patterns.
     Returns the first matched pattern label, or None if clean.

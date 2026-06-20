@@ -4,11 +4,11 @@ ASFT Example 1 — Hardware Detection & Skill Routing (no GPU required)
 Demonstrates: HardwareProfiler + SkillRouter + ConfidenceScorer
 This example runs on any machine without a model or GPU.
 """
-from asft.core.hardware_profiler import detect_hardware
+from asft.accuracy.confidence_scorer import ConfidenceScorer
 from asft.core.config import ASFTConfig
+from asft.core.hardware_profiler import detect_hardware
 from asft.core.registry import registry
 from asft.skills.skill_router import SkillRouter
-from asft.accuracy.confidence_scorer import ConfidenceScorer
 
 print("=" * 60)
 print("ASFT — Example 1: Hardware & Skill Routing")
@@ -25,12 +25,12 @@ cfg.apply_hardware_profile(hw)
 
 # 3. Register skill packs
 print("\n[2] Registering skill packs...")
-from asft.skills.packs.coding import CodingSkillPack
-from asft.skills.packs.research import ResearchSkillPack
-from asft.skills.packs.planning import PlanningSkillPack
-from asft.skills.packs.mathematics import MathematicsSkillPack
-from asft.skills.packs.trading import TradingSkillPack
 from asft.skills.packs.automation import AutomationSkillPack
+from asft.skills.packs.coding import CodingSkillPack
+from asft.skills.packs.mathematics import MathematicsSkillPack
+from asft.skills.packs.planning import PlanningSkillPack
+from asft.skills.packs.research import ResearchSkillPack
+from asft.skills.packs.trading import TradingSkillPack
 
 packs = [CodingSkillPack(), ResearchSkillPack(), PlanningSkillPack(),
          MathematicsSkillPack(), TradingSkillPack(), AutomationSkillPack()]

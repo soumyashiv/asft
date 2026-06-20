@@ -1,16 +1,15 @@
 import asyncio
-import time
 import logging
+import time
 import uuid
+from typing import Any
+
 import psutil
-from typing import Dict, Any, List
 
-from sqlalchemy.orm import Session
-
+from asft.core.hardware_profiler import detect_hardware
 from asft.db.database import SessionLocal
 from asft.db.models import BenchmarkResult
 from asft.evaluation.harness import LmEvalHarnessAdapter
-from asft.core.hardware_profiler import detect_hardware
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class BenchmarkManager:
     def __init__(self):
         self.harness = LmEvalHarnessAdapter()
 
-    def evaluate_accuracy(self, model_path: str, tasks: List[str] = None) -> Dict[str, Any]:
+    def evaluate_accuracy(self, model_path: str, tasks: list[str] = None) -> dict[str, Any]:
         """
         Validates reasoning and hallucination claims using lm-evaluation-harness.
         """
@@ -50,7 +49,7 @@ class BenchmarkManager:
         self._save_result("accuracy", model_path, metrics)
         return metrics
 
-    def evaluate_resources(self, model_path: str) -> Dict[str, Any]:
+    def evaluate_resources(self, model_path: str) -> dict[str, Any]:
         """
         Validates the Training Time and Resource Reduction claims.
         Runs a mocked/minimal training profile to measure VRAM and execution speed.
@@ -103,7 +102,7 @@ class BenchmarkManager:
         self._save_result("resources", model_path, metrics)
         return metrics
 
-    def _save_result(self, claim_type: str, model_name: str, metrics: Dict[str, Any]):
+    def _save_result(self, claim_type: str, model_name: str, metrics: dict[str, Any]):
         """
         Saves the benchmark metrics to the SQLite/Postgres database.
         """

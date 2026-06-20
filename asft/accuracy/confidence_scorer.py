@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ class ConfidenceScore:
     reliability: float      # 0–1: factual reliability estimate
     verification: float     # 0–1: how well the output can be verified
     composite: float        # weighted combination
-    flags: List[str]        # detected quality issues
+    flags: list[str]        # detected quality issues
 
     @property
     def needs_extra_pass(self) -> bool:
@@ -86,9 +85,9 @@ class ConfidenceScorer:
         self._verifiable_re = [re.compile(p) for p in _VERIFIABLE_PATTERNS]
 
     def score(self, output: str, task_type: str = "general",
-              model_logprobs: Optional[List[float]] = None) -> ConfidenceScore:
+              model_logprobs: list[float] | None = None) -> ConfidenceScore:
         """Score a model output."""
-        flags: List[str] = []
+        flags: list[str] = []
 
         if not output or len(output.strip()) < 5:
             return ConfidenceScore(0.1, 0.1, 0.1, 0.1, ["empty_output"])
@@ -132,7 +131,7 @@ class ConfidenceScorer:
             flags=flags,
         )
 
-    def _score_confidence(self, text: str, flags: List[str]) -> float:
+    def _score_confidence(self, text: str, flags: list[str]) -> float:
         uncertainty_hits = sum(1 for p in self._uncertainty_re if p.search(text))
         if uncertainty_hits >= 3:
             flags.append("high_uncertainty")
@@ -142,7 +141,7 @@ class ConfidenceScorer:
             return 0.7
         return 0.9
 
-    def _score_reliability(self, text: str, flags: List[str]) -> float:
+    def _score_reliability(self, text: str, flags: list[str]) -> float:
         hallucination_hits = sum(1 for p in self._hallucination_re if p.search(text))
         if hallucination_hits >= 2:
             flags.append("hallucination_risk")
@@ -156,10 +155,10 @@ class ConfidenceScorer:
         verifiable_hits = sum(1 for p in self._verifiable_re if p.search(text))
         return min(1.0, 0.3 + verifiable_hits * 0.15)
 
-    def batch_score(self, outputs: List[str], task_type: str = "general") -> List[ConfidenceScore]:
+    def batch_score(self, outputs: list[str], task_type: str = "general") -> list[ConfidenceScore]:
         return [self.score(o, task_type) for o in outputs]
 
-    def best_output(self, outputs: List[str], task_type: str = "general") -> tuple:
+    def best_output(self, outputs: list[str], task_type: str = "general") -> tuple:
         """Select the highest-confidence output from a list."""
         scores = self.batch_score(outputs, task_type)
         best_idx = max(range(len(scores)), key=lambda i: scores[i].composite)

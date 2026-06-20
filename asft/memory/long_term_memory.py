@@ -8,7 +8,7 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import Column, Float, Integer, String, Text, create_engine, func
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
@@ -52,8 +52,8 @@ class LongTermMemory:
         self._Session = sessionmaker(bind=self._engine)
 
     def store(self, category: str, key: str, content: str,
-              summary: Optional[str] = None, confidence: float = 1.0,
-              importance: float = 0.5, source_events: Optional[List[int]] = None) -> str:
+              summary: str | None = None, confidence: float = 1.0,
+              importance: float = 0.5, source_events: list[int] | None = None) -> str:
         """Create or update a long-term memory entry. Returns ID."""
         with self._Session() as session:
             # Check if entry with same category+key exists
@@ -87,8 +87,8 @@ class LongTermMemory:
             session.commit()
         return entry_id
 
-    def retrieve(self, category: str, key: Optional[str] = None,
-                 limit: int = 20) -> List[Dict[str, Any]]:
+    def retrieve(self, category: str, key: str | None = None,
+                 limit: int = 20) -> list[dict[str, Any]]:
         with self._Session() as session:
             q = session.query(LongTermEntry).filter(LongTermEntry.category == category)
             if key:
@@ -100,12 +100,12 @@ class LongTermMemory:
             session.commit()
             return [self._to_dict(r) for r in results]
 
-    def get_by_id(self, entry_id: str) -> Optional[Dict[str, Any]]:
+    def get_by_id(self, entry_id: str) -> dict[str, Any] | None:
         with self._Session() as session:
             e = session.get(LongTermEntry, entry_id)
             return self._to_dict(e) if e else None
 
-    def top_by_importance(self, n: int = 50) -> List[Dict[str, Any]]:
+    def top_by_importance(self, n: int = 50) -> list[dict[str, Any]]:
         with self._Session() as session:
             entries = (
                 session.query(LongTermEntry)
@@ -128,12 +128,12 @@ class LongTermMemory:
         with self._Session() as session:
             return session.query(func.count(LongTermEntry.id)).scalar()
 
-    def categories(self) -> List[str]:
+    def categories(self) -> list[str]:
         with self._Session() as session:
             rows = session.query(LongTermEntry.category).distinct().all()
             return [r[0] for r in rows]
 
-    def _to_dict(self, e: LongTermEntry) -> Dict[str, Any]:
+    def _to_dict(self, e: LongTermEntry) -> dict[str, Any]:
         return {
             "id": e.id,
             "category": e.category,

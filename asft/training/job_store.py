@@ -23,10 +23,10 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from asft.core.interfaces import IJobStore, JobRecord
 from asft.core.exceptions import JobNotFoundError
+from asft.core.interfaces import IJobStore, JobRecord
 
 logger = logging.getLogger(__name__)
 
@@ -78,9 +78,9 @@ class SQLiteJobStore(IJobStore):
 
     async def create(
         self,
-        job_id: Optional[str] = None,
+        job_id: str | None = None,
         job_type: str = "training",
-        payload: Optional[Dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
     ) -> JobRecord:
         await self._ensure_init()
         import aiosqlite
@@ -116,7 +116,7 @@ class SQLiteJobStore(IJobStore):
         logger.info("Job created | id=%s type=%s", job_id, job_type)
         return record
 
-    async def get(self, job_id: str) -> Optional[JobRecord]:
+    async def get(self, job_id: str) -> JobRecord | None:
         await self._ensure_init()
         import aiosqlite
 
@@ -135,8 +135,8 @@ class SQLiteJobStore(IJobStore):
         self,
         job_id: str,
         status: str,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
+        result: dict[str, Any] | None = None,
+        error: str | None = None,
     ) -> None:
         await self._ensure_init()
         import aiosqlite
@@ -163,10 +163,10 @@ class SQLiteJobStore(IJobStore):
 
     async def list_jobs(
         self,
-        job_type: Optional[str] = None,
-        status: Optional[str] = None,
+        job_type: str | None = None,
+        status: str | None = None,
         limit: int = 50,
-    ) -> List[JobRecord]:
+    ) -> list[JobRecord]:
         await self._ensure_init()
         import aiosqlite
 
@@ -232,11 +232,11 @@ class InMemoryJobStore(IJobStore):
     """
 
     def __init__(self) -> None:
-        self._jobs: Dict[str, JobRecord] = {}
+        self._jobs: dict[str, JobRecord] = {}
 
-    async def create(self, job_id: Optional[str] = None,
+    async def create(self, job_id: str | None = None,
                      job_type: str = "training",
-                     payload: Optional[Dict[str, Any]] = None) -> JobRecord:
+                     payload: dict[str, Any] | None = None) -> JobRecord:
         if job_id is None:
             job_id = str(uuid.uuid4())[:12]
         now = time.time()
@@ -247,12 +247,12 @@ class InMemoryJobStore(IJobStore):
         self._jobs[job_id] = record
         return record
 
-    async def get(self, job_id: str) -> Optional[JobRecord]:
+    async def get(self, job_id: str) -> JobRecord | None:
         return self._jobs.get(job_id)
 
     async def update_status(self, job_id: str, status: str,
-                            result: Optional[Dict] = None,
-                            error: Optional[str] = None) -> None:
+                            result: dict | None = None,
+                            error: str | None = None) -> None:
         if job_id not in self._jobs:
             raise JobNotFoundError(f"Job '{job_id}' not found.")
         r = self._jobs[job_id]
@@ -263,9 +263,9 @@ class InMemoryJobStore(IJobStore):
         if error is not None:
             r.error = error
 
-    async def list_jobs(self, job_type: Optional[str] = None,
-                        status: Optional[str] = None,
-                        limit: int = 50) -> List[JobRecord]:
+    async def list_jobs(self, job_type: str | None = None,
+                        status: str | None = None,
+                        limit: int = 50) -> list[JobRecord]:
         records = list(self._jobs.values())
         if job_type:
             records = [r for r in records if r.job_type == job_type]
@@ -280,7 +280,7 @@ class InMemoryJobStore(IJobStore):
 # ---------------------------------------------------------------------------
 
 
-def create_job_store(db_path: Optional[str] = None) -> IJobStore:
+def create_job_store(db_path: str | None = None) -> IJobStore:
     """
     Create the best available job store.
     Falls back to InMemoryJobStore if aiosqlite is unavailable.

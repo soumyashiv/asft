@@ -16,14 +16,14 @@ import logging
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from asft.memory.working_memory import WorkingMemory
-from asft.memory.episodic_memory import EpisodicMemory, EventRecord
-from asft.memory.semantic_memory import SemanticMemory, FactRecord
-from asft.memory.long_term_memory import LongTermMemory
-from asft.memory.vector_memory import VectorMemory
 from asft.memory.consolidator import MemoryConsolidator
+from asft.memory.episodic_memory import EpisodicMemory, EventRecord
+from asft.memory.long_term_memory import LongTermMemory
+from asft.memory.semantic_memory import FactRecord, SemanticMemory
+from asft.memory.vector_memory import VectorMemory
+from asft.memory.working_memory import WorkingMemory
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class MemoryManager:
     Implements the ASFT learning priority hierarchy at the memory layer.
     """
 
-    def __init__(self, config=None, session_id: Optional[str] = None):
+    def __init__(self, config=None, session_id: str | None = None):
         self._session_id = session_id or str(uuid.uuid4())
         self._config = config
 
@@ -80,13 +80,13 @@ class MemoryManager:
     # Unified Query Interface
     # ------------------------------------------------------------------
 
-    def query(self, query: str, top_k: int = 5) -> List[MemoryQueryResult]:
+    def query(self, query: str, top_k: int = 5) -> list[MemoryQueryResult]:
         """
         Query all memory systems in priority order.
         Returns results from the first system that has relevant data.
         Aggregates across systems when multiple sources have matches.
         """
-        results: List[MemoryQueryResult] = []
+        results: list[MemoryQueryResult] = []
 
         # 1. Working memory — exact key lookup
         wm_val = self.working.get(query)
@@ -136,7 +136,7 @@ class MemoryManager:
     # Store Interfaces
     # ------------------------------------------------------------------
 
-    def remember(self, key: str, value: Any, tags: Optional[List[str]] = None) -> None:
+    def remember(self, key: str, value: Any, tags: list[str] | None = None) -> None:
         """Store something in working memory."""
         self.working.set(key, value, tags=tags)
 
@@ -148,9 +148,9 @@ class MemoryManager:
             source=source, confidence=confidence,
         ))
 
-    def record_event(self, event_type: str, context: Dict, outcome: Dict,
+    def record_event(self, event_type: str, context: dict, outcome: dict,
                      success: bool = True, confidence: float = 1.0,
-                     duration: float = 0.0, task_id: Optional[str] = None) -> int:
+                     duration: float = 0.0, task_id: str | None = None) -> int:
         """Record a task event to episodic memory."""
         return self.episodic.record(EventRecord(
             event_type=event_type,
@@ -163,7 +163,7 @@ class MemoryManager:
             session_id=self._session_id,
         ))
 
-    def index_text(self, doc_id: str, text: str, metadata: Optional[Dict] = None) -> None:
+    def index_text(self, doc_id: str, text: str, metadata: dict | None = None) -> None:
         """Index text in vector memory for semantic search."""
         self.vector.add_text(doc_id, text, metadata=metadata)
 
@@ -172,13 +172,13 @@ class MemoryManager:
     # ------------------------------------------------------------------
 
     def maybe_consolidate(self, interval_hours: float = 24.0,
-                          min_events: int = 100) -> Optional[Dict]:
+                          min_events: int = 100) -> dict | None:
         """Run consolidation if due."""
         if self.consolidator.should_run(interval_hours, min_events):
             return self.consolidator.run()
         return None
 
-    def force_consolidate(self) -> Dict:
+    def force_consolidate(self) -> dict:
         """Force-run consolidation immediately."""
         return self.consolidator.run()
 
@@ -186,7 +186,7 @@ class MemoryManager:
     # Stats
     # ------------------------------------------------------------------
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "working_memory_items": len(self.working),
             "episodic_events": self.episodic.count(),

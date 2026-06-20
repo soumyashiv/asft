@@ -5,7 +5,7 @@ Dramatically reduces dataset size while preserving diversity.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +21,14 @@ class DatasetDeduplicator:
         self._threshold = threshold
         self._num_perm = num_perm
 
-    def _shingle(self, text: str, k: int = 5) -> Set[str]:
+    def _shingle(self, text: str, k: int = 5) -> set[str]:
         """Character k-gram shingling."""
         text = text.lower().strip()
         if len(text) <= k:
             return {text}
         return {text[i:i+k] for i in range(len(text) - k + 1)}
 
-    def _minhash(self, shingles: Set[str]):
+    def _minhash(self, shingles: set[str]):
         try:
             from datasketch import MinHash
             m = MinHash(num_perm=self._num_perm)
@@ -39,8 +39,8 @@ class DatasetDeduplicator:
             raise ImportError("Install datasketch: pip install datasketch")
 
     def deduplicate(
-        self, texts: List[str], ids: Optional[List[str]] = None
-    ) -> Tuple[List[str], List[str], Dict[str, Any]]:
+        self, texts: list[str], ids: list[str] | None = None
+    ) -> tuple[list[str], list[str], dict[str, Any]]:
         """
         Remove near-duplicates from a list of texts.
 
@@ -62,7 +62,7 @@ class DatasetDeduplicator:
             mh = self._minhash(shingles)
             minhashes.append(mh)
 
-        kept_indices: List[int] = []
+        kept_indices: list[int] = []
         duplicate_count = 0
 
         for i, (mh, doc_id) in enumerate(zip(minhashes, ids)):
@@ -90,4 +90,3 @@ class DatasetDeduplicator:
 
 
 # Fix missing Optional import
-from typing import Optional

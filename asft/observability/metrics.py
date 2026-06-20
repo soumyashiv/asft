@@ -5,10 +5,8 @@ Provides a lightweight metric collection interface that can be scraped
 by Prometheus or exported to OpenTelemetry.
 """
 import logging
-import time
 from collections import defaultdict
 from threading import Lock
-from typing import Dict, Optional
 
 from asft.core.interfaces import IMetricsCollector
 
@@ -22,12 +20,12 @@ class InMemoryMetricsCollector(IMetricsCollector):
     """
     
     def __init__(self):
-        self._counters: Dict[str, float] = defaultdict(float)
-        self._gauges: Dict[str, float] = {}
-        self._histograms: Dict[str, list[float]] = defaultdict(list)
+        self._counters: dict[str, float] = defaultdict(float)
+        self._gauges: dict[str, float] = {}
+        self._histograms: dict[str, list[float]] = defaultdict(list)
         self._lock = Lock()
         
-    def _format_name(self, name: str, labels: Optional[Dict[str, str]]) -> str:
+    def _format_name(self, name: str, labels: dict[str, str] | None) -> str:
         if not labels:
             return name
         # Sort keys to ensure consistent formatting
@@ -35,19 +33,19 @@ class InMemoryMetricsCollector(IMetricsCollector):
         return f"{name}{{{label_str}}}"
 
     def increment(self, name: str, value: float = 1.0,
-                  labels: Optional[Dict[str, str]] = None) -> None:
+                  labels: dict[str, str] | None = None) -> None:
         full_name = self._format_name(name, labels)
         with self._lock:
             self._counters[full_name] += value
             
     def gauge(self, name: str, value: float,
-              labels: Optional[Dict[str, str]] = None) -> None:
+              labels: dict[str, str] | None = None) -> None:
         full_name = self._format_name(name, labels)
         with self._lock:
             self._gauges[full_name] = value
             
     def histogram(self, name: str, value: float,
-                  labels: Optional[Dict[str, str]] = None) -> None:
+                  labels: dict[str, str] | None = None) -> None:
         full_name = self._format_name(name, labels)
         with self._lock:
             # Keep only the last 1000 observations to prevent memory leaks

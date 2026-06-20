@@ -20,21 +20,18 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-import time
-from typing import Callable, Optional, Set
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-
-from asft.core.exceptions import AuthenticationError
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Public endpoints that bypass auth (e.g., health checks)
 # ---------------------------------------------------------------------------
-_PUBLIC_PATHS: Set[str] = {"/", "/health", "/status", "/docs", "/openapi.json", "/redoc"}
+_PUBLIC_PATHS: set[str] = {"/", "/health", "/status", "/docs", "/openapi.json", "/redoc"}
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +44,7 @@ def _hash_key(key: str) -> str:
     return hashlib.sha256(key.strip().encode()).hexdigest()
 
 
-def _load_valid_key_hashes() -> Set[str]:
+def _load_valid_key_hashes() -> set[str]:
     """
     Load valid API key hashes from environment.
 
@@ -68,7 +65,7 @@ def _load_valid_key_hashes() -> Set[str]:
 
 
 # Singleton set loaded once at import time
-_VALID_KEY_HASHES: Set[str] = _load_valid_key_hashes()
+_VALID_KEY_HASHES: set[str] = _load_valid_key_hashes()
 
 # Whether auth is enforced (can be disabled for local dev)
 _AUTH_REQUIRED: bool = os.environ.get("ASFT_API_AUTH_REQUIRED", "true").lower() == "true"
@@ -88,7 +85,7 @@ def verify_api_key(key: str) -> bool:
     return key_hash in _VALID_KEY_HASHES
 
 
-def extract_api_key(request: Request) -> Optional[str]:
+def extract_api_key(request: Request) -> str | None:
     """Extract API key from the request. Checks X-API-Key header first."""
     # X-API-Key header (preferred)
     key = request.headers.get("X-API-Key")

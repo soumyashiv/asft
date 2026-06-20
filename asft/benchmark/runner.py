@@ -9,7 +9,7 @@ import logging
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class BenchmarkRecord:
             return 0.0
         return 1.0 - self.trainable_params / self.total_params
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["param_efficiency"] = self.param_efficiency
         return d
@@ -54,7 +54,7 @@ class BenchmarkRunner:
     def __init__(self, output_dir: str = "./asft_data/benchmarks"):
         self._output_dir = Path(output_dir)
         self._output_dir.mkdir(parents=True, exist_ok=True)
-        self._records: List[BenchmarkRecord] = []
+        self._records: list[BenchmarkRecord] = []
 
     def time_inference(self, model, tokenizer, prompt: str, device: str = "cpu",
                        n_runs: int = 10) -> float:
@@ -83,7 +83,7 @@ class BenchmarkRunner:
         except Exception:
             return 0.0
 
-    def evaluate_accuracy(self, model, tokenizer, eval_samples: List[Dict],
+    def evaluate_accuracy(self, model, tokenizer, eval_samples: list[dict],
                            device: str = "cpu") -> tuple:
         """
         Evaluate model on a set of (prompt, expected) pairs.
@@ -139,10 +139,10 @@ class BenchmarkRunner:
         logger.info("Benchmark results saved: %s", output_path)
         return str(output_path)
 
-    def _summarize(self) -> Dict[str, Any]:
+    def _summarize(self) -> dict[str, Any]:
         if not self._records:
             return {}
-        by_method: Dict[str, List[BenchmarkRecord]] = {}
+        by_method: dict[str, list[BenchmarkRecord]] = {}
         for r in self._records:
             by_method.setdefault(r.method, []).append(r)
 
