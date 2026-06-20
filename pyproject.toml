@@ -4,16 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asft"
-version = "0.3.0"
+version = "0.1.0"
 description = "ASFT — Training Acceleration Framework: Achieve the same or better model capability with dramatically fewer resources."
+authors = [{ name = "Soumyashiv" }]
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.10"
 keywords = ["machine-learning", "fine-tuning", "qlora", "lora", "training-acceleration", "knowledge-distillation", "continual-learning"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
