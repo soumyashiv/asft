@@ -18,7 +18,7 @@ ALGORITHM = "HS256"
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials = Depends(security),  # noqa: B008
     db: Session = Depends(get_db),  # noqa: B008
 ) -> User:
     """Validate JWT token and retrieve the active user."""
