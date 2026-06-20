@@ -26,27 +26,31 @@ class MemoryQueryResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-class IMemoryBackend(abc.ABC):
-    """Abstract contract for all memory backends (vector, SQL, etc.)."""
+class IMemoryStore(abc.ABC):
+    """Abstract contract for all vector memory backends (Qdrant, FAISS, etc.)."""
 
     @abc.abstractmethod
-    async def store(self, key: str, content: Any, metadata: Optional[Dict] = None) -> str:
-        """Persist an item. Returns a unique item ID."""
+    async def add(self, content: str, metadata: Optional[Dict] = None) -> str:
+        """Persist a single item. Returns a unique item ID."""
 
     @abc.abstractmethod
-    async def query(self, query: str, top_k: int = 5) -> List[MemoryQueryResult]:
-        """Retrieve top-k items most relevant to the query."""
+    async def update(self, item_id: str, content: str, metadata: Optional[Dict] = None) -> bool:
+        """Update an existing item."""
 
     @abc.abstractmethod
     async def delete(self, item_id: str) -> bool:
         """Delete an item by ID. Returns True if deleted."""
 
     @abc.abstractmethod
-    async def count(self) -> int:
-        """Return the total number of items stored."""
+    async def search(self, query_vector: List[float], top_k: int = 5) -> List[MemoryQueryResult]:
+        """Retrieve top-k items most relevant to the query vector."""
 
     @abc.abstractmethod
-    async def health(self) -> bool:
+    async def batch_insert(self, contents: List[str], metadatas: Optional[List[Dict]] = None) -> List[str]:
+        """Insert multiple items efficiently. Returns a list of IDs."""
+
+    @abc.abstractmethod
+    async def health_check(self) -> bool:
         """Return True if the backend is healthy and reachable."""
 
 
@@ -75,6 +79,8 @@ class TrainingConfig:
     eval_steps: int               = 50
     save_steps: int               = 100
     sparsity_ratio: float         = 0.95          # only used by sparse method
+    fsdp: Optional[str]           = None          # e.g., "full_shard auto_wrap"
+    deepspeed: Optional[str]      = None          # e.g., "ds_config.json"
 
 
 @dataclass
@@ -291,4 +297,35 @@ class IDistiller(abc.ABC):
     @abc.abstractmethod
     def distill(self, config: DistillationConfig) -> TrainingResult:
         """Run the distillation process."""
+
+# ---------------------------------------------------------------------------
+# Sandbox Interfaces
+# ---------------------------------------------------------------------------
+
+class ISandbox(abc.ABC):
+    """Abstract contract for secure code execution sandbox."""
+
+    @abc.abstractmethod
+    async def execute(self, code: str, timeout: int = 5) -> str:
+        """Execute code securely and return the output."""
+
+    @abc.abstractmethod
+    async def terminate(self) -> None:
+        """Force terminate the sandbox and clean up resources."""
+
+    @abc.abstractmethod
+    async def health_check(self) -> bool:
+        """Return True if the sandbox environment is healthy."""
+
+# ---------------------------------------------------------------------------
+# Evaluation Interfaces
+# ---------------------------------------------------------------------------
+
+class IEvaluationHarness(abc.ABC):
+    """Abstract contract for model evaluation harness (e.g. lm-evaluation-harness)."""
+
+    @abc.abstractmethod
+    async def evaluate(self, model_path: str, tasks: List[str]) -> Dict[str, Any]:
+        """Run benchmark tasks on a model and return metrics."""
+
 

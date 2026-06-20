@@ -1,38 +1,72 @@
 version: '3.8'
 
 services:
-  asft-api:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    image: asft:latest
-    container_name: asft-api
-    restart: unless-stopped
+  api:
+    build: .
     ports:
       - "8000:8000"
     environment:
-      - ASFT_API_AUTH_REQUIRED=true
-      # In production, replace this with a secure comma-separated list of keys
-      - ASFT_API_KEYS=dev_key_1234567890
-      - LOG_LEVEL=INFO
-      - ASFT_DB_PATH=/app/asft_data/jobs.db
-      - ASFT_EPISODIC_DB_PATH=/app/asft_data/episodic.db
+      - ASFT_ENV=production
+      - ASFT_DATABASE_URL=postgresql://asftuser:asftpassword@db:5432/asftdb
+      - ASFT_CELERY_BROKER_URL=redis://redis:6379/0
+      - ASFT_CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - ASFT_JWT_SECRET_KEY=change_this_to_a_secure_random_string_in_production
+      - ASFT_ALLOWED_ORIGINS=["*"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - asft_data:/app/asft_data
-    # For GPU support on NVIDIA hosts, uncomment the following:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
+
+  worker:
+    build: .
+    command: ["celery", "-A", "asft.workers.celery_app", "worker", "--loglevel=info"]
+    environment:
+      - ASFT_ENV=production
+      - ASFT_DATABASE_URL=postgresql://asftuser:asftpassword@db:5432/asftdb
+      - ASFT_CELERY_BROKER_URL=redis://redis:6379/0
+      - ASFT_CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - ASFT_JWT_SECRET_KEY=change_this_to_a_secure_random_string_in_production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - asft_data:/app/asft_data
+      - ~/.cache/huggingface:/home/asftuser/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: asftuser
+      POSTGRES_PASSWORD: asftpassword
+      POSTGRES_DB: asftdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD-SHELL", "pg_isready -U asftuser -d asftdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
   asft_data:
-    name: asft_data_volume
+  postgres_data:
+  redis_data:

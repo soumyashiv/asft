@@ -108,6 +108,36 @@ class ASFTSettings(BaseSettings):
         return self.data_dir / "datasets"
 
     # ------------------------------------------------------------------
+    # Celery & Redis
+    # ------------------------------------------------------------------
+    celery_broker_url: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis broker URL for Celery.",
+    )
+    celery_result_backend: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis result backend URL for Celery.",
+    )
+
+    # ------------------------------------------------------------------
+    # Database (Alembic / SQLAlchemy)
+    # ------------------------------------------------------------------
+    database_url: str = Field(
+        default="sqlite:///./asft_data/asft.db",
+        description="SQLAlchemy Database URL. Supports sqlite, postgresql, etc.",
+    )
+
+    # ------------------------------------------------------------------
+    # Security (JWT & RBAC)
+    # ------------------------------------------------------------------
+    jwt_secret_key: str = Field(
+        default="change-me-in-production-super-secret-key",
+        description="Secret key for signing JWT tokens.",
+    )
+    jwt_algorithm: str = Field(default="HS256")
+    jwt_access_token_expire_minutes: int = Field(default=60 * 24 * 7) # 1 week
+
+    # ------------------------------------------------------------------
     # Training Defaults
     # ------------------------------------------------------------------
     default_training_method: str = Field(

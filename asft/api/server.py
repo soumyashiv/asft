@@ -38,7 +38,7 @@ from asft.api.middleware import (
     RequestLoggingMiddleware,
     SecurityHeadersMiddleware,
 )
-from asft.security.auth import APIKeyMiddleware
+from asft.security.rbac import require_admin, require_researcher, require_agent, require_readonly
 from asft.api.schemas import (
     CompressRequest,
     CompressResponse,
@@ -58,7 +58,6 @@ from asft.core.registry import Registry
 from asft.core.settings import get_settings
 from asft.training.job_store import create_job_store
 from asft.training.peft_trainer import PEFTTrainer
-from asft.workers.process_pool import get_pool, shutdown_pool, submit_to_pool
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -116,46 +115,30 @@ def _compression_worker(job_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
 async def run_training_job(job_id: str, payload: Dict[str, Any]) -> None:
     """
-    Submit training to the worker process pool.
-    Does NOT block the event loop — awaits the future asynchronously.
+    Submit training to the Celery worker queue.
     """
-    await job_store.update_status(job_id, "running")
-    logger.info("Training job %s submitted to worker pool", job_id)
+    await job_store.update_status(job_id, "queued")
+    logger.info("Training job %s submitted to Celery queue", job_id)
+    
+    from asft.workers.tasks import run_training_job as celery_training_task
     try:
-        result = await submit_to_pool(
-            _training_worker,
-            job_id,
-            payload,
-            timeout=float(settings.training_timeout_seconds),
-        )
-        if result.get("status") == "completed":
-            await job_store.update_status(job_id, "completed", result=result)
-        else:
-            await job_store.update_status(
-                job_id, "failed", error=result.get("error_message", "Unknown error")
-            )
-    except asyncio.TimeoutError:
-        logger.error("Training job %s timed out after %ds", job_id, settings.training_timeout_seconds)
-        await job_store.update_status(job_id, "failed", error="Job timed out")
+        # Dispatch to celery
+        celery_training_task.apply_async(kwargs={"config_dict": payload, "job_id": job_id}, task_id=job_id)
     except Exception as e:
-        logger.exception("Training job %s failed", job_id)
+        logger.exception("Failed to dispatch job %s to Celery", job_id)
         await job_store.update_status(job_id, "failed", error=str(e))
 
 
 async def run_compression_job(job_id: str, payload: Dict[str, Any]) -> None:
-    """Submit dataset compression to the worker pool."""
-    await job_store.update_status(job_id, "running")
-    logger.info("Compression job %s submitted to worker pool", job_id)
+    """Submit dataset compression to the Celery queue."""
+    await job_store.update_status(job_id, "queued")
+    logger.info("Compression job %s submitted to Celery queue", job_id)
+    
+    from asft.workers.tasks import run_compression_job as celery_compression_task
     try:
-        result = await submit_to_pool(
-            _compression_worker,
-            job_id,
-            payload,
-            timeout=3600.0,  # 1 hour max
-        )
-        await job_store.update_status(job_id, "completed", result=result)
+        celery_compression_task.apply_async(kwargs={"payload": payload, "job_id": job_id}, task_id=job_id)
     except Exception as e:
-        logger.exception("Compression job %s failed", job_id)
+        logger.exception("Failed to dispatch compression job %s to Celery", job_id)
         await job_store.update_status(job_id, "failed", error=str(e))
 
 
@@ -168,21 +151,21 @@ async def lifespan(app: FastAPI):
     """Application lifecycle: startup and shutdown."""
     logger.info("ASFT API Server starting up...")
 
-    # Initialize process pool for GPU workers
-    get_pool(max_workers=settings.max_training_workers)
-
     # Register trainers
     registry.register("trainer", "peft", PEFTTrainer())
 
     # Profile hardware
     profiler.profile()
     logger.info("Hardware profile: %s", profiler)
+    
+    # Start Redis listener for WebSockets
+    from asft.api.websockets import redis_listener
+    listener_task = asyncio.create_task(redis_listener())
 
     yield
 
-    # Graceful shutdown: wait for running training jobs to finish
     logger.info("ASFT API Server shutting down...")
-    shutdown_pool(wait=True)
+    listener_task.cancel()
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +219,7 @@ async def unhandled_error_handler(request: Request, exc: Exception):
 # Middleware (executed bottom-up in Starlette)
 # ---------------------------------------------------------------------------
 
-app.add_middleware(APIKeyMiddleware)
+# Removed APIKeyMiddleware. Authentication is now handled by FastAPI Depends() using JWT in routes.
 app.add_middleware(
     RateLimitMiddleware,
     requests_per_minute=settings.rate_limit_per_minute,
@@ -252,6 +235,8 @@ app.add_middleware(
 )
 app.add_middleware(RequestLoggingMiddleware)
 
+from asft.api.websockets import router as websocket_router
+app.include_router(websocket_router)
 
 # ---------------------------------------------------------------------------
 # Endpoints
@@ -268,7 +253,9 @@ async def health_check():
     )
 
 
-@app.post("/api/v1/estimate", response_model=EstimateResponse, tags=["optimizer"])
+from fastapi import Depends
+
+@app.post("/api/v1/estimate", response_model=EstimateResponse, tags=["optimizer"], dependencies=[Depends(require_researcher)])
 async def estimate_training_cost(request: EstimateRequest):
     """
     Estimate training cost, time, and resource requirements BEFORE committing.
@@ -293,7 +280,7 @@ async def estimate_training_cost(request: EstimateRequest):
     )
 
 
-@app.post("/api/v1/optimize", response_model=OptimizeResponse, tags=["optimizer"])
+@app.post("/api/v1/optimize", response_model=OptimizeResponse, tags=["optimizer"], dependencies=[Depends(require_researcher)])
 async def auto_optimize(request: OptimizeRequest):
     """
     AutoOptimizer: determine the cheapest path to solving a task.
@@ -315,8 +302,8 @@ async def auto_optimize(request: OptimizeRequest):
     )
 
 
-@app.post("/api/v1/train", response_model=TrainResponse, tags=["training"])
-async def queue_training(request: TrainRequest, background_tasks: BackgroundTasks):
+@app.post("/api/v1/train", response_model=TrainResponse, tags=["training"], dependencies=[Depends(require_agent)])
+async def queue_training(request: TrainRequest):
     """
     Queue a fine-tuning job. The job runs in a worker process pool —
     the API response is immediate; poll /api/v1/jobs/{job_id} for status.
@@ -339,8 +326,8 @@ async def queue_training(request: TrainRequest, background_tasks: BackgroundTask
     return TrainResponse(job_id=job.job_id, status="queued")
 
 
-@app.post("/api/v1/dataset/compress", response_model=CompressResponse, tags=["dataset"])
-async def queue_compression(request: CompressRequest, background_tasks: BackgroundTasks):
+@app.post("/api/v1/dataset/compress", response_model=CompressResponse, tags=["dataset"], dependencies=[Depends(require_agent)])
+async def queue_compression(request: CompressRequest):
     """Queue a dataset compression job."""
     payload = request.model_dump()
     job = await job_store.create(job_type="compression", payload=payload)
@@ -348,7 +335,7 @@ async def queue_compression(request: CompressRequest, background_tasks: Backgrou
     return CompressResponse(job_id=job.job_id, status="queued")
 
 
-@app.get("/api/v1/jobs/{job_id}", response_model=JobStatusResponse, tags=["jobs"])
+@app.get("/api/v1/jobs/{job_id}", response_model=JobStatusResponse, tags=["jobs"], dependencies=[Depends(require_readonly)])
 async def get_job_status(job_id: str):
     """Retrieve the status and results of a background job."""
     job = await job_store.get(job_id)
@@ -357,7 +344,7 @@ async def get_job_status(job_id: str):
     return JobStatusResponse(**job.__dict__)
 
 
-@app.get("/api/v1/jobs", tags=["jobs"])
+@app.get("/api/v1/jobs", tags=["jobs"], dependencies=[Depends(require_readonly)])
 async def list_jobs(
     job_type: Optional[str] = None,
     status: Optional[str] = None,

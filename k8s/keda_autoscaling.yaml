@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: asft-redis-auth
+  namespace: asft-production
+type: Opaque
+stringData:
+  # Base64 encoded redis connection string, should be injected by CI/CD
+  redis-url: "redis://redis-master.asft-production.svc.cluster.local:6379/0"
+
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: asft-redis-trigger-auth
+  namespace: asft-production
+spec:
+  secretTargetRef:
+  - parameter: address
+    name: asft-redis-auth
+    key: redis-url
+
+---
+# 1. Training Worker Autoscaling (GPU Optimized)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: asft-training-scaler
+  namespace: asft-production
+spec:
+  scaleTargetRef:
+    name: asft-worker-training
+  pollingInterval: 15
+  cooldownPeriod: 300
+  minReplicaCount: 0
+  maxReplicaCount: 20
+  triggers:
+  - type: redis
+    metadata:
+      listName: "celery" # We'll assume a dedicated 'training_queue' here
+      listLength: "5"
+    authenticationRef:
+      name: asft-redis-trigger-auth
+
+---
+# 2. Compression Worker Autoscaling (CPU Optimized)
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: asft-compression-scaler
+  namespace: asft-production
+spec:
+  scaleTargetRef:
+    name: asft-worker-compression
+  pollingInterval: 10
+  cooldownPeriod: 120
+  minReplicaCount: 1
+  maxReplicaCount: 50
+  triggers:
+  - type: redis
+    metadata:
+      listName: "compression_queue"
+      listLength: "10"
+    authenticationRef:
+      name: asft-redis-trigger-auth
+
+---
+# 3. Evaluation Worker Autoscaling
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: asft-evaluation-scaler
+  namespace: asft-production
+spec:
+  scaleTargetRef:
+    name: asft-worker-evaluation
+  pollingInterval: 30
+  cooldownPeriod: 300
+  minReplicaCount: 0
+  maxReplicaCount: 10
+  triggers:
+  - type: redis
+    metadata:
+      listName: "evaluation_queue"
+      listLength: "2"
+    authenticationRef:
+      name: asft-redis-trigger-auth
+
+---
+# 4. Benchmark Worker Autoscaling
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: asft-benchmark-scaler
+  namespace: asft-production
+spec:
+  scaleTargetRef:
+    name: asft-worker-benchmark
+  pollingInterval: 60
+  cooldownPeriod: 600
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  triggers:
+  - type: redis
+    metadata:
+      listName: "benchmark_queue"
+      listLength: "1"
+    authenticationRef:
+      name: asft-redis-trigger-auth

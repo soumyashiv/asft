@@ -29,35 +29,11 @@ class SearchResult:
     distance: float
 
 
-# ---------------------------------------------------------------------------
-# Abstract adapter
-# ---------------------------------------------------------------------------
-
-class VectorBackend(ABC):
-    """Base interface all vector backends must implement."""
-
-    @abstractmethod
-    def add(self, docs: List[VectorDocument]) -> None: ...
-
-    @abstractmethod
-    def search(self, query_embedding: List[float], top_k: int = 10,
-               filter: Optional[Dict] = None) -> List[SearchResult]: ...
-
-    @abstractmethod
-    def delete(self, ids: List[str]) -> None: ...
-
-    @abstractmethod
-    def count(self) -> int: ...
-
-    @abstractmethod
-    def clear(self) -> None: ...
+from asft.core.interfaces import IMemoryStore, MemoryQueryResult
 
 
-# ---------------------------------------------------------------------------
-# ChromaDB backend
-# ---------------------------------------------------------------------------
-
-class ChromaDBBackend(VectorBackend):
+# ChromaDB is no longer the primary. Kept for backwards compatibility.
+class ChromaDBBackend(IMemoryStore):
     def __init__(self, persist_dir: str, collection_name: str,
                  host: Optional[str] = None, port: int = 8000):
         import chromadb
@@ -71,186 +47,62 @@ class ChromaDBBackend(VectorBackend):
         )
         logger.info("ChromaDB backend: collection=%s", collection_name)
 
-    def add(self, docs: List[VectorDocument]) -> None:
-        if not docs:
-            return
+    async def add(self, content: str, metadata: Optional[Dict] = None, vector: Optional[List[float]] = None) -> str:
+        import uuid
+        doc_id = str(uuid.uuid4())
         self._collection.upsert(
-            ids=[d.id for d in docs],
-            documents=[d.text for d in docs],
-            embeddings=[d.embedding for d in docs if d.embedding is not None] or None,
-            metadatas=[d.metadata for d in docs],
+            ids=[doc_id],
+            documents=[content],
+            embeddings=[vector] if vector else None,
+            metadatas=[metadata or {}],
         )
+        return doc_id
 
-    def search(self, query_embedding: List[float], top_k: int = 10,
-               filter: Optional[Dict] = None) -> List[SearchResult]:
-        kwargs: Dict[str, Any] = {"query_embeddings": [query_embedding], "n_results": top_k}
-        if filter:
-            kwargs["where"] = filter
-        results = self._collection.query(**kwargs)
+    async def update(self, item_id: str, content: str, metadata: Optional[Dict] = None, vector: Optional[List[float]] = None) -> bool:
+        self._collection.upsert(
+            ids=[item_id],
+            documents=[content],
+            embeddings=[vector] if vector else None,
+            metadatas=[metadata or {}],
+        )
+        return True
+
+    async def delete(self, item_id: str) -> bool:
+        self._collection.delete(ids=[item_id])
+        return True
+
+    async def search(self, query_vector: List[float], top_k: int = 5) -> List[MemoryQueryResult]:
+        results = self._collection.query(query_embeddings=[query_vector], n_results=top_k)
         out = []
         for i, doc_id in enumerate(results["ids"][0]):
             dist = results["distances"][0][i]
             meta = results["metadatas"][0][i] if results["metadatas"] else {}
             text = results["documents"][0][i] if results["documents"] else ""
-            out.append(SearchResult(
-                doc=VectorDocument(id=doc_id, text=text, metadata=meta),
-                score=1.0 - dist,
-                distance=dist,
+            out.append(MemoryQueryResult(
+                source="chroma",
+                content=text,
+                confidence=1.0 - dist,
+                metadata=meta,
             ))
         return out
 
-    def delete(self, ids: List[str]) -> None:
-        self._collection.delete(ids=ids)
-
-    def count(self) -> int:
-        return self._collection.count()
-
-    def clear(self) -> None:
-        name = self._collection.name
-        self._client.delete_collection(name)
-        self._collection = self._client.get_or_create_collection(
-            name=name, metadata={"hnsw:space": "cosine"}
+    async def batch_insert(self, contents: List[str], metadatas: Optional[List[Dict]] = None, vectors: Optional[List[List[float]]] = None) -> List[str]:
+        import uuid
+        ids = [str(uuid.uuid4()) for _ in contents]
+        self._collection.upsert(
+            ids=ids,
+            documents=contents,
+            embeddings=vectors if vectors else None,
+            metadatas=metadatas if metadatas else [{} for _ in contents],
         )
+        return ids
 
-
-# ---------------------------------------------------------------------------
-# FAISS backend
-# ---------------------------------------------------------------------------
-
-class FAISSBackend(VectorBackend):
-    def __init__(self, index_path: str, index_type: str = "Flat", dim: int = 384):
+    async def health_check(self) -> bool:
         try:
-            import faiss
-        except ImportError:
-            raise ImportError("Install faiss: pip install faiss-cpu  or  pip install asft[faiss]")
-        import faiss
-        self._faiss = faiss
-        self._index_path = index_path
-        self._dim = dim
-        self._docs: Dict[int, VectorDocument] = {}
-        self._id_map: Dict[str, int] = {}  # str_id → faiss int_id
-        self._next_id = 0
-
-        if index_type == "IVFFlat":
-            quantizer = faiss.IndexFlatIP(dim)
-            self._index = faiss.IndexIVFFlat(quantizer, dim, min(100, max(1, 1)))
-        elif index_type == "HNSW":
-            self._index = faiss.IndexHNSWFlat(dim, 32)
-        else:
-            self._index = faiss.IndexFlatIP(dim)  # Flat inner-product (cosine after normalize)
-        logger.info("FAISS backend: type=%s dim=%d", index_type, dim)
-
-    def add(self, docs: List[VectorDocument]) -> None:
-        if not docs:
-            return
-        vecs = []
-        for doc in docs:
-            if doc.embedding is None:
-                continue
-            arr = np.array(doc.embedding, dtype=np.float32)
-            arr /= (np.linalg.norm(arr) + 1e-9)  # normalize for cosine
-            vecs.append(arr)
-            faiss_id = self._next_id
-            self._next_id += 1
-            self._id_map[doc.id] = faiss_id
-            self._docs[faiss_id] = doc
-        if vecs:
-            matrix = np.stack(vecs)
-            self._index.add(matrix)
-
-    def search(self, query_embedding: List[float], top_k: int = 10,
-               filter: Optional[Dict] = None) -> List[SearchResult]:
-        arr = np.array(query_embedding, dtype=np.float32)
-        arr /= (np.linalg.norm(arr) + 1e-9)
-        scores, indices = self._index.search(arr.reshape(1, -1), top_k)
-        results = []
-        for score, idx in zip(scores[0], indices[0]):
-            if idx < 0 or idx not in self._docs:
-                continue
-            doc = self._docs[idx]
-            results.append(SearchResult(doc=doc, score=float(score), distance=1.0 - float(score)))
-        return results
-
-    def delete(self, ids: List[str]) -> None:
-        logger.warning("FAISS flat index does not support deletion; marking as removed in doc store.")
-        for sid in ids:
-            fid = self._id_map.pop(sid, None)
-            if fid is not None:
-                self._docs.pop(fid, None)
-
-    def count(self) -> int:
-        return len(self._docs)
-
-    def clear(self) -> None:
-        self._docs.clear()
-        self._id_map.clear()
-        self._next_id = 0
-        self._index.reset()
-
-
-# ---------------------------------------------------------------------------
-# Qdrant backend
-# ---------------------------------------------------------------------------
-
-class QdrantBackend(VectorBackend):
-    def __init__(self, host: str, port: int, collection_name: str, dim: int = 384):
-        try:
-            from qdrant_client import QdrantClient
-            from qdrant_client.models import Distance, VectorParams
-        except ImportError:
-            raise ImportError("Install qdrant-client: pip install asft[qdrant]")
-        from qdrant_client import QdrantClient
-        from qdrant_client.models import Distance, VectorParams
-        self._client = QdrantClient(host=host, port=port)
-        self._collection = collection_name
-        self._dim = dim
-        collections = [c.name for c in self._client.get_collections().collections]
-        if collection_name not in collections:
-            self._client.create_collection(
-                collection_name=collection_name,
-                vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
-            )
-        logger.info("Qdrant backend: %s:%d/%s", host, port, collection_name)
-
-    def add(self, docs: List[VectorDocument]) -> None:
-        from qdrant_client.models import PointStruct
-        points = [
-            PointStruct(id=d.id, vector=d.embedding, payload={"text": d.text, **d.metadata})
-            for d in docs if d.embedding
-        ]
-        if points:
-            self._client.upsert(collection_name=self._collection, points=points)
-
-    def search(self, query_embedding: List[float], top_k: int = 10,
-               filter: Optional[Dict] = None) -> List[SearchResult]:
-        hits = self._client.search(
-            collection_name=self._collection,
-            query_vector=query_embedding,
-            limit=top_k,
-        )
-        results = []
-        for h in hits:
-            text = h.payload.get("text", "") if h.payload else ""
-            meta = {k: v for k, v in (h.payload or {}).items() if k != "text"}
-            results.append(SearchResult(
-                doc=VectorDocument(id=str(h.id), text=text, metadata=meta),
-                score=h.score,
-                distance=1.0 - h.score,
-            ))
-        return results
-
-    def delete(self, ids: List[str]) -> None:
-        from qdrant_client.models import PointIdsList
-        self._client.delete(
-            collection_name=self._collection,
-            points_selector=PointIdsList(points=ids),
-        )
-
-    def count(self) -> int:
-        return self._client.get_collection(self._collection).points_count
-
-    def clear(self) -> None:
-        self._client.delete_collection(self._collection)
+            self._client.heartbeat()
+            return True
+        except Exception:
+            return False
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +138,7 @@ class VectorMemory:
 
     def __init__(
         self,
-        backend: str = "chromadb",
+        backend: str = "qdrant",
         embedding_model: str = "all-MiniLM-L6-v2",
         embedding_device: str = "cpu",
         **backend_kwargs,
@@ -295,48 +147,42 @@ class VectorMemory:
         dim = self._embedder.dim
 
         if backend == "chromadb":
-            self._backend: VectorBackend = ChromaDBBackend(**backend_kwargs)
+            self._backend: IMemoryStore = ChromaDBBackend(**backend_kwargs)
         elif backend == "faiss":
-            self._backend = FAISSBackend(dim=dim, **backend_kwargs)
+            from asft.memory.backends.faiss_adapter import FaissBackend
+            self._backend = FaissBackend(dim=dim)
         elif backend == "qdrant":
-            self._backend = QdrantBackend(dim=dim, **backend_kwargs)
+            from asft.memory.backends.qdrant import QdrantBackend
+            self._backend = QdrantBackend(collection_name=backend_kwargs.get("collection_name", "asft_memory"))
         else:
             raise ValueError(f"Unknown vector backend: {backend!r}. Choose: chromadb, faiss, qdrant")
 
         logger.info("VectorMemory: backend=%s", backend)
 
-    def add_text(self, doc_id: str, text: str, metadata: Optional[Dict] = None) -> None:
+    async def add_text(self, doc_id: str, text: str, metadata: Optional[Dict] = None) -> None:
         embedding = self._embedder.encode_one(text)
-        doc = VectorDocument(id=doc_id, text=text, embedding=embedding, metadata=metadata or {})
-        self._backend.add([doc])
+        await self._backend.add(content=text, metadata=metadata, vector=embedding)
 
-    def add_texts(self, texts: List[Tuple[str, str]], metadata: Optional[List[Dict]] = None) -> None:
+    async def add_texts(self, texts: List[Tuple[str, str]], metadata: Optional[List[Dict]] = None) -> None:
         """Add multiple (id, text) pairs."""
         all_texts = [t for _, t in texts]
         embeddings = self._embedder.encode(all_texts)
-        docs = [
-            VectorDocument(
-                id=doc_id, text=text,
-                embedding=emb,
-                metadata=(metadata[i] if metadata else {}),
-            )
-            for i, ((doc_id, text), emb) in enumerate(zip(texts, embeddings))
-        ]
-        self._backend.add(docs)
+        await self._backend.batch_insert(
+            contents=all_texts,
+            metadatas=metadata,
+            vectors=embeddings,
+        )
 
-    def search(self, query: str, top_k: int = 10,
-               filter: Optional[Dict] = None) -> List[SearchResult]:
+    async def search(self, query: str, top_k: int = 10,
+               filter: Optional[Dict] = None) -> List[MemoryQueryResult]:
         query_emb = self._embedder.encode_one(query)
-        return self._backend.search(query_emb, top_k=top_k, filter=filter)
+        # Note: IMemoryStore interface doesn't natively take filter.
+        # But MemoryQueryResult has all the metadata.
+        return await self._backend.search(query_vector=query_emb, top_k=top_k)
 
-    def delete(self, ids: List[str]) -> None:
-        self._backend.delete(ids)
-
-    def count(self) -> int:
-        return self._backend.count()
-
-    def clear(self) -> None:
-        self._backend.clear()
+    async def delete(self, ids: List[str]) -> None:
+        for item_id in ids:
+            await self._backend.delete(item_id)
 
     @classmethod
     def from_config(cls, cfg) -> "VectorMemory":

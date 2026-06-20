@@ -2,14 +2,13 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: asft-api-hpa
-  namespace: asft-system
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: asft-api
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 3
+  maxReplicas: 20
   metrics:
   - type: Resource
     resource:
@@ -17,9 +16,24 @@ spec:
       target:
         type: Utilization
         averageUtilization: 75
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: asft-worker-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: asft-worker
+  minReplicas: 2
+  maxReplicas: 50
+  metrics:
   - type: Resource
     resource:
-      name: memory
+      name: cpu
       target:
         type: Utilization
         averageUtilization: 80
+  # Note: Can also scale on custom metrics like Celery Queue Length if Prometheus Adapter is installed.

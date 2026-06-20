@@ -28,10 +28,12 @@ console = Console()
 skill_app = typer.Typer(help="Skill pack management")
 memory_app = typer.Typer(help="Memory system operations")
 benchmark_app = typer.Typer(help="Benchmarking tools")
+db_app = typer.Typer(help="Database migration operations")
 
 app.add_typer(skill_app, name="skill")
 app.add_typer(memory_app, name="memory")
 app.add_typer(benchmark_app, name="benchmark")
+app.add_typer(db_app, name="db")
 
 BANNER = """
 [bold purple]  █████╗ ███████╗███████╗████████╗[/bold purple]
@@ -305,17 +307,100 @@ def benchmark_hardware():
         hw = detect_hardware()
     console.print(Panel(hw.summary(), title="[bold]Hardware Profile[/bold]", border_style="purple"))
 
+@benchmark_app.command("run")
+def benchmark_run(
+    claim: str = typer.Option(..., help="Claim to benchmark: accuracy, resources, or all"),
+    model: str = typer.Option("Qwen/Qwen2-0.5B", "--model", "-m", help="Model path"),
+):
+    """Dispatch a benchmark validation job to the Celery queue."""
+    from asft.workers.tasks import run_benchmark_task
+    import uuid
+    import time
+    
+    claims = ["accuracy", "resources"] if claim == "all" else [claim]
+    
+    for c in claims:
+        job_id = str(uuid.uuid4())
+        kwargs = {}
+        if c == "accuracy":
+            kwargs["tasks"] = ["mmlu", "gsm8k", "truthfulqa_gen"]
+            
+        console.print(f"[bold cyan]Dispatching {c} benchmark for {model}...[/bold cyan]")
+        run_benchmark_task.apply_async(
+            kwargs={"claim_type": c, "model_path": model, "kwargs": kwargs, "job_id": job_id},
+            task_id=job_id
+        )
+        console.print(f"[bold green]✓[/bold green] Job {job_id} queued.")
+        
+    console.print("Use the WebSocket API or `asft benchmark history` to view results once completed.")
+
+@benchmark_app.command("history")
+def benchmark_history():
+    """View historical benchmark results."""
+    from asft.db.database import SessionLocal
+    from asft.db.models import BenchmarkResult
+    from datetime import datetime
+    
+    db = SessionLocal()
+    try:
+        results = db.query(BenchmarkResult).order_by(BenchmarkResult.timestamp.desc()).limit(10).all()
+        
+        table = Table(title="Recent Benchmarks", border_style="purple")
+        table.add_column("Date", style="cyan")
+        table.add_column("Claim", style="yellow")
+        table.add_column("Model")
+        table.add_column("Summary")
+        
+        for r in results:
+            dt = datetime.fromtimestamp(r.timestamp).strftime('%Y-%m-%d %H:%M')
+            # Extract simple summary
+            if r.claim_type == "resources":
+                summary = f"VRAM: {r.metrics.get('peak_vram_gb_used', 0):.2f}GB, Time: {r.metrics.get('execution_time_seconds', 0):.1f}s"
+            elif r.claim_type == "accuracy":
+                res = r.metrics.get("results", {})
+                if "error" in res:
+                    summary = f"Error: {res['error']}"
+                else:
+                    summary = f"Tasks: {len(r.metrics.get('tasks', []))}"
+            else:
+                summary = "..."
+                
+            table.add_row(dt, r.claim_type, r.model_name, summary)
+            
+        console.print(table)
+    finally:
+        db.close()
+
+# ---------------------------------------------------------------------------
+# Database subcommands
+# ---------------------------------------------------------------------------
+
+@db_app.command("upgrade")
+def db_upgrade(revision: str = typer.Argument("head", help="Revision to upgrade to (default: head)")):
+    """Run Alembic database migrations."""
+    from alembic.config import Config
+    from alembic import command
+    console.print(f"[bold cyan]Upgrading database to {revision}...[/bold cyan]")
+    try:
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, revision)
+        console.print("[bold green]✓ Database upgrade complete.[/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]✗ Database upgrade failed: {e}[/bold red]")
+        raise typer.Exit(1)
+
 
 @app.command()
-def api(
+def serve(
     host: str = typer.Option("0.0.0.0", help="API host"),
-    port: int = typer.Option(8080, help="API port"),
+    port: int = typer.Option(8000, help="API port"),
+    workers: int = typer.Option(4, help="Number of uvicorn worker processes"),
     reload: bool = typer.Option(False, help="Auto-reload on code changes"),
 ):
-    """[bold]Start[/bold] the ASFT REST API server."""
-    console.print(f"[bold green]Starting ASFT API on http://{host}:{port}[/bold green]")
+    """[bold]Start[/bold] the ASFT REST API server for production."""
+    console.print(f"[bold green]Starting ASFT API on http://{host}:{port} with {workers} workers[/bold green]")
     import uvicorn
-    uvicorn.run("asft.api.server:app", host=host, port=port, reload=reload)
+    uvicorn.run("asft.api.server:app", host=host, port=port, workers=workers, reload=reload)
 
 
 if __name__ == "__main__":

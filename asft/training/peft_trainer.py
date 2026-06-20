@@ -69,11 +69,11 @@ class PEFTTrainer(ITrainer):
     def supports_method(self, method: str) -> bool:
         return method in ("peft_lora", "qlora", "lora")
 
-    def train(self, config: TrainingConfig) -> TrainingResult:
+    def train(self, config: TrainingConfig, job_id: str = None) -> TrainingResult:
         """
         Run LoRA/QLoRA fine-tuning. Blocking. Returns a TrainingResult.
         """
-        job_id = f"peft_{int(time.time())}"
+        job_id = job_id or f"peft_{int(time.time())}"
         start = time.time()
 
         logger.info(
@@ -87,9 +87,19 @@ class PEFTTrainer(ITrainer):
             dataset = self._load_dataset(config)
             sft_trainer = self._build_sft_trainer(model, tokenizer, dataset, config)
 
+            from asft.training.checkpoint_manager import CheckpointManager
+            checkpoint_manager = CheckpointManager(job_id=job_id)
+            sft_trainer.add_callback(checkpoint_manager)
+
             logger.info("Starting SFTTrainer.train()")
+            
+            # Determine resume checkpoint
+            resume_path = CheckpointManager.get_latest_checkpoint(job_id)
+            if not resume_path:
+                resume_path = self._find_checkpoint(config.output_dir)
+
             sft_trainer.train(
-                resume_from_checkpoint=self._find_checkpoint(config.output_dir)
+                resume_from_checkpoint=resume_path
             )
 
             # Save adapter weights only
@@ -248,6 +258,8 @@ class PEFTTrainer(ITrainer):
             report_to=[],          # disable wandb/tensorboard in base config
             max_length=1024,
             packing=False,
+            fsdp=config.fsdp,
+            deepspeed=config.deepspeed,
         )
 
         return SFTTrainer(
