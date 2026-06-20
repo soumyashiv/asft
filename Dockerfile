@@ -6,12 +6,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY pyproject.toml .
+COPY README.md .
+COPY asft/ ./asft/
 # Install dependencies into a virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir .
 
 # Stage 2: Production
 FROM python:3.10-slim
