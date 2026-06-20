@@ -116,6 +116,53 @@ print(f"Estimated Cost: ${projection.cost_usd:.2f}")
 print(f"GPU Hours Required: {projection.gpu_hours:.2f}")
 ```
 
+### 4. Intelligent Routing (Bandit Learning)
+When multiple models or strategies are available, ASFT uses a Multi-Armed Bandit router to balance exploration (trying new methods) and exploitation (using the best known method) based on historical success rates.
+
+```python
+from asft.optimizer.decision_engine import MultiArmedBanditRouter
+
+router = MultiArmedBanditRouter()
+# Dynamically select between RAG and QLoRA for a specific task
+strategy, is_explore = router.select_strategy(
+    task_hash="task_medical_triage_001", 
+    available_strategies=["memory_rag", "qlora"]
+)
+
+print(f"Selected Strategy: {strategy} (Exploration Mode: {is_explore})")
+
+# Later, record the success to train the router for future queries
+router.record_outcome(task_hash="task_medical_triage_001", strategy=strategy, success=True)
+```
+
+### 5. Managing Stateful Memory
+ASFT includes a full-fledged Memory Manager handling Working Memory (Key-Value), Semantic Memory (Knowledge Graphs), and Episodic Memory (Event Logs).
+
+```python
+from asft.memory.memory_manager import MemoryManager
+
+memory = MemoryManager(session_id="session_001")
+
+# 1. Store short-term context
+memory.remember(key="patient_id", value="PT-8942", tags=["medical", "active"])
+
+# 2. Learn a permanent semantic fact
+fact_id = memory.learn_fact(
+    subject="PT-8942", 
+    predicate="diagnosed_with", 
+    obj="Hypertension",
+    confidence=0.95
+)
+
+# 3. Record an episodic event
+memory.record_task_event(
+    event_type="consultation",
+    context={"patient": "PT-8942"},
+    outcome={"action": "prescribed_medication"},
+    success=True
+)
+```
+
 ## 🛡️ Architecture & Security
 
 ASFT is designed for robust enterprise deployment:
