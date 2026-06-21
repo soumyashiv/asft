@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asft"
-version = "0.1.0"
-description = "ASFT — Training Acceleration Framework: Achieve the same or better model capability with dramatically fewer resources."
+version = "0.2.0"
+description = "ASFT — Adaptive Synaptic Fine-Tuning: Achieve the same or better model capability with dramatically fewer resources."    
 authors = [{ name = "Soumyashiv" }]
 readme = "README.md"
 license = { text = "Apache-2.0" }

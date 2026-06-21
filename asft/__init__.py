@@ -13,7 +13,7 @@ Learning Priority Hierarchy:
 Full retraining is always the last resort.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "ASFT Contributors"
 __license__ = "MIT"
 
