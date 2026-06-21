@@ -4,6 +4,7 @@ ASFT Example 2 — Memory Systems (no GPU required)
 Demonstrates: WorkingMemory + EpisodicMemory + SemanticMemory + MemoryManager
 All memory operations use SQLite — no model needed.
 """
+
 import time
 
 from asft.core.config import ASFTConfig
@@ -34,7 +35,9 @@ print(f"  After TTL prune: {wm.count()}")
 print("\n[2] Episodic Memory (SQLite)")
 em = EpisodicMemory(db_path=":memory:")
 em.record("task_start", {"task": "analyze_report", "domain": "finance"}, success=True, duration=0.5)
-em.record("task_complete", {"task": "analyze_report", "output_len": 450}, success=True, duration=2.1)
+em.record(
+    "task_complete", {"task": "analyze_report", "output_len": 450}, success=True, duration=2.1
+)
 em.record("task_error", {"task": "code_gen", "error": "syntax_error"}, success=False, duration=0.3)
 em.record("task_complete", {"task": "math_solve"}, success=True, duration=0.8)
 em.record("task_complete", {"task": "research"}, success=True, duration=3.2)
@@ -66,6 +69,7 @@ print("\n[4] Memory Manager Integration")
 cfg = ASFTConfig(data_dir=":memory:")
 try:
     from asft.memory.memory_manager import MemoryManager
+
     mm = MemoryManager(config=cfg)
     mm.learn_fact("Transformers", "is_a", "library", source="docs")
     mm.record_task("code_gen", True, duration=1.5, context={"lang": "python"})

@@ -1,9 +1,10 @@
 """RAG (Retrieval-Augmented Generation) evaluation interface and mock implementation."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from asft.analysis.evaluator import PromptEvaluationResult
 
@@ -16,7 +17,7 @@ class RAGEvaluationResult:
     score: float = 0.0  # normalised 0-100
     retrieval_available: bool = False
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {"method": self.method, "score": round(self.score / 100, 2)}
 
 
@@ -30,7 +31,7 @@ class RAGAnalyzer(ABC):
     @abstractmethod
     def evaluate_rag(
         self,
-        task_config: Dict[str, Any],
+        task_config: dict[str, Any],
         baseline: PromptEvaluationResult,
     ) -> RAGEvaluationResult:
         """Run RAG against the task and return the retrieval-augmented score."""
@@ -45,7 +46,7 @@ class MockRAGAnalyzer(RAGAnalyzer):
 
     def evaluate_rag(
         self,
-        task_config: Dict[str, Any],
+        task_config: dict[str, Any],
         baseline: PromptEvaluationResult,
     ) -> RAGEvaluationResult:
         has_docs = bool(task_config.get("documents")) or bool(task_config.get("dataset"))

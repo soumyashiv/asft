@@ -1,4 +1,5 @@
 """CLI command: asft analyze <config_file>"""
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,7 @@ def analyze_cmd(
         raise typer.Exit(code=1)
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             task_data = json.load(f)
     except json.JSONDecodeError as exc:
         console.print(f"[bold red]Error parsing JSON:[/bold red] {exc}")

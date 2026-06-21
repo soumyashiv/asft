@@ -19,9 +19,10 @@ Usage (Python API)::
     )
     result.recommend()
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from rich.console import Console
 
@@ -52,11 +53,11 @@ class Analyzer:
 
     def __init__(
         self,
-        task_config: Dict[str, Any],
-        prompt_evaluator: Optional[PromptEvaluator] = None,
-        rag_analyzer: Optional[RAGAnalyzer] = None,
-        ft_estimator: Optional[FinetuneEstimator] = None,
-        recommender: Optional[DecisionRecommender] = None,
+        task_config: dict[str, Any],
+        prompt_evaluator: PromptEvaluator | None = None,
+        rag_analyzer: RAGAnalyzer | None = None,
+        ft_estimator: FinetuneEstimator | None = None,
+        recommender: DecisionRecommender | None = None,
     ) -> None:
         self._config = task_config
         self._prompt_evaluator = prompt_evaluator or MockPromptEvaluator()
@@ -67,7 +68,7 @@ class Analyzer:
     # ── Factory methods ───────────────────────────────────────────────────────
 
     @classmethod
-    def from_config(cls, task_config: Dict[str, Any], **kwargs: Any) -> "Analyzer":
+    def from_config(cls, task_config: dict[str, Any], **kwargs: Any) -> Analyzer:
         """Build an :class:`Analyzer` from a task config dictionary.
 
         Parameters
@@ -85,10 +86,10 @@ class Analyzer:
     def from_huggingface(
         cls,
         model: str,
-        dataset: Optional[str] = None,
-        task_name: Optional[str] = None,
+        dataset: str | None = None,
+        task_name: str | None = None,
         **kwargs: Any,
-    ) -> "Analyzer":
+    ) -> Analyzer:
         """Build an :class:`Analyzer` from HuggingFace model/dataset identifiers.
 
         Parameters
@@ -110,7 +111,7 @@ class Analyzer:
         evaluator; by default :class:`MockPromptEvaluator` is used (a
         ``[mock]`` notice is printed) so the command works without a GPU.
         """
-        task_config: Dict[str, Any] = {
+        task_config: dict[str, Any] = {
             "task_name": task_name or model,
             "model": model,
         }
@@ -122,9 +123,7 @@ class Analyzer:
             from huggingface_hub import model_info  # type: ignore[import]
 
             model_info(model)
-            console.print(
-                f"[dim]✓ HuggingFace model resolved: [cyan]{model}[/cyan][/dim]"
-            )
+            console.print(f"[dim]✓ HuggingFace model resolved: [cyan]{model}[/cyan][/dim]")
         except Exception:  # noqa: BLE001
             console.print(
                 f"[yellow]⚠  Could not resolve '{model}' on HuggingFace Hub "

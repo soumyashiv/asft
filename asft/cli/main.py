@@ -45,10 +45,10 @@ BANNER = """
 # Import and register external commands
 try:
     from asft.cli.analyze import analyze_cmd
+
     app.command(name="analyze")(analyze_cmd)
 except ImportError:
     pass
-
 
 
 @app.callback(invoke_without_command=True)

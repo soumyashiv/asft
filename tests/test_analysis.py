@@ -1,7 +1,6 @@
 """Tests for asft.analysis — ASFT LLM Decision Pipeline."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from asft.analysis.analyzer import Analyzer
 from asft.analysis.evaluator import MockPromptEvaluator, PromptEvaluationResult
@@ -9,23 +8,25 @@ from asft.analysis.finetune_estimator import FinetuneEstimateResult, FinetuneEst
 from asft.analysis.rag_analyzer import MockRAGAnalyzer, RAGEvaluationResult
 from asft.analysis.recommender import DecisionRecommender
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _prompt(score: float) -> PromptEvaluationResult:
     return PromptEvaluationResult(method="prompt", score=score)
 
+
 def _rag(score: float, available: bool = True) -> RAGEvaluationResult:
     return RAGEvaluationResult(method="rag", score=score, retrieval_available=available)
 
+
 def _ft(score: float, cost: float = 500.0, hours: float = 9.0) -> FinetuneEstimateResult:
     return FinetuneEstimateResult(
-        method="fine_tuning", expected_score=score,
-        estimated_cost=cost, estimated_hours=hours
+        method="fine_tuning", expected_score=score, estimated_cost=cost, estimated_hours=hours
     )
 
 
 # ── DecisionRecommender ───────────────────────────────────────────────────────
+
 
 class TestDecisionRecommender:
     def setup_method(self):
@@ -55,7 +56,7 @@ class TestDecisionRecommender:
         assert result_a.reason != result_b.reason
 
     def test_confidence_increases_with_improvement(self):
-        low_gain  = self.rec.recommend(_prompt(72.0), _rag(83.0), _ft(84.0))
+        low_gain = self.rec.recommend(_prompt(72.0), _rag(83.0), _ft(84.0))
         high_gain = self.rec.recommend(_prompt(60.0), _rag(85.0), _ft(86.0))
         # Both are RAG, but high_gain has a larger rag_improvement
         assert high_gain.confidence > low_gain.confidence
@@ -63,13 +64,14 @@ class TestDecisionRecommender:
 
 # ── FinetuneEstimator ─────────────────────────────────────────────────────────
 
+
 class TestFinetuneEstimator:
     def test_support_task_with_rag_gets_small_ft_gain(self):
         estimator = FinetuneEstimator()
         task = {"task_name": "customer support chatbot", "model": "meta-llama/Llama-3-8B"}
         rag = _rag(89.0, available=True)
         result = estimator.estimate(task, rag)
-        assert result.expected_score == 90.0   # +1 pp
+        assert result.expected_score == 90.0  # +1 pp
         assert result.estimated_hours == 9.0
 
     def test_70b_model_costs_more(self):
@@ -85,10 +87,11 @@ class TestFinetuneEstimator:
         task = {"task_name": "code generation", "model": "meta-llama/Llama-3-8B"}
         rag = _rag(70.0, available=False)
         result = estimator.estimate(task, rag)
-        assert result.expected_score > 80.0   # +15 pp
+        assert result.expected_score > 80.0  # +15 pp
 
 
 # ── Mock Evaluators ───────────────────────────────────────────────────────────
+
 
 class TestMockEvaluators:
     def test_mock_prompt_support_task(self):
@@ -120,13 +123,16 @@ class TestMockEvaluators:
 
 # ── Analyzer (public API) ─────────────────────────────────────────────────────
 
+
 class TestAnalyzer:
     def test_from_config_returns_report(self):
-        analyzer = Analyzer.from_config({
-            "task_name": "customer support chatbot",
-            "model": "meta-llama/Llama-3",
-            "documents": "./docs",
-        })
+        analyzer = Analyzer.from_config(
+            {
+                "task_name": "customer support chatbot",
+                "model": "meta-llama/Llama-3",
+                "documents": "./docs",
+            }
+        )
         report = analyzer.run()
         assert report.task_name == "Customer Support Chatbot"
         assert report.prompt.score > 0
@@ -134,19 +140,23 @@ class TestAnalyzer:
         assert report.recommendation.method in {"PROMPTING", "RAG", "FINE-TUNING"}
 
     def test_from_config_support_recommends_rag(self):
-        analyzer = Analyzer.from_config({
-            "task_name": "customer support chatbot",
-            "model": "meta-llama/Llama-3",
-            "documents": "./docs",
-        })
+        analyzer = Analyzer.from_config(
+            {
+                "task_name": "customer support chatbot",
+                "model": "meta-llama/Llama-3",
+                "documents": "./docs",
+            }
+        )
         report = analyzer.run()
         assert report.recommendation.method == "RAG"
 
     def test_analyzer_report_has_nonzero_savings_for_rag(self):
-        analyzer = Analyzer.from_config({
-            "task_name": "customer support chatbot",
-            "model": "meta-llama/Llama-3",
-            "documents": "./docs",
-        })
+        analyzer = Analyzer.from_config(
+            {
+                "task_name": "customer support chatbot",
+                "model": "meta-llama/Llama-3",
+                "documents": "./docs",
+            }
+        )
         report = analyzer.run()
         assert report.recommendation.savings_usd > 0

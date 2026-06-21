@@ -1,4 +1,5 @@
 """Report formatting for ASFT Decision Reports."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

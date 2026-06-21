@@ -1,4 +1,5 @@
 """Decision recommendation engine."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,10 +13,10 @@ from asft.analysis.rag_analyzer import RAGEvaluationResult
 class RecommendationResult:
     """Typed output from the recommendation engine."""
 
-    method: str           # "PROMPTING" | "RAG" | "FINE-TUNING"
-    confidence: float     # 0-100
+    method: str  # "PROMPTING" | "RAG" | "FINE-TUNING"
+    confidence: float  # 0-100
     reason: str
-    savings_usd: float    # 0 if fine-tuning is the recommendation
+    savings_usd: float  # 0 if fine-tuning is the recommendation
     savings_hours: float  # 0 if fine-tuning is the recommendation
 
 

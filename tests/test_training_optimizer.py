@@ -6,6 +6,7 @@ Tests for the Training Acceleration subsystems:
     - ComputeBudgetRouter: task complexity classification
     - EWCRegularizer: Fisher computation and penalty
 """
+
 from __future__ import annotations
 
 import pytest
@@ -14,11 +15,13 @@ import pytest
 # CostEstimator Tests
 # ============================================================================
 
+
 class TestCostEstimator:
 
     @pytest.fixture
     def estimator(self):
         from asft.optimizer.cost_estimator import CostEstimator
+
         return CostEstimator()
 
     def test_estimate_returns_positive_values(self, estimator):
@@ -63,12 +66,15 @@ class TestCostEstimator:
         est = estimator.estimate("Qwen/Qwen2-7B", dataset_size=1000, method="qlora")
         assert est.roi_score > 0
 
-    @pytest.mark.parametrize("model,expected_billions", [
-        ("Qwen/Qwen2-7B", 7.0),
-        ("Qwen/Qwen2-0.5B", 0.5),
-        ("meta-llama/Meta-Llama-3-8B", 8.0),
-        ("mistralai/Mistral-7B-v0.1", 7.0),
-    ])
+    @pytest.mark.parametrize(
+        "model,expected_billions",
+        [
+            ("Qwen/Qwen2-7B", 7.0),
+            ("Qwen/Qwen2-0.5B", 0.5),
+            ("meta-llama/Meta-Llama-3-8B", 8.0),
+            ("mistralai/Mistral-7B-v0.1", 7.0),
+        ],
+    )
     def test_model_param_lookup(self, estimator, model, expected_billions):
         est = estimator.estimate(model, dataset_size=100)
         assert est.n_params_billions == pytest.approx(expected_billions, abs=0.1)
@@ -78,11 +84,13 @@ class TestCostEstimator:
 # AutoOptimizer Tests
 # ============================================================================
 
+
 class TestAutoOptimizer:
 
     @pytest.fixture
     def optimizer_no_registry(self):
         from asft.optimizer.auto_optimizer import AutoOptimizer
+
         return AutoOptimizer(registry=None)
 
     def test_recommends_rag_for_low_accuracy_target(self, optimizer_no_registry):
@@ -91,8 +99,13 @@ class TestAutoOptimizer:
             target_accuracy=0.70,
         )
         # RAG accuracy is 0.72, should be sufficient for 0.70 target
-        assert decision.action in ("use_rag", "use_skill", "use_episodic_memory",
-                                   "use_semantic_memory", "use_working_memory")
+        assert decision.action in (
+            "use_rag",
+            "use_skill",
+            "use_episodic_memory",
+            "use_semantic_memory",
+            "use_working_memory",
+        )
 
     def test_recommends_training_for_high_accuracy(self, optimizer_no_registry):
         decision = optimizer_no_registry.decide(
@@ -100,12 +113,11 @@ class TestAutoOptimizer:
             target_accuracy=0.88,
             allow_training=True,
         )
-        assert decision.action in (
-            "use_lora", "use_qlora", "distill", "full_finetune"
-        )
+        assert decision.action in ("use_lora", "use_qlora", "distill", "full_finetune")
 
     def test_rejects_when_training_disabled_and_target_too_high(self, optimizer_no_registry):
         from asft.optimizer.auto_optimizer import ACTION_REJECT
+
         decision = optimizer_no_registry.decide(
             task="Complex specialized task",
             target_accuracy=0.98,
@@ -122,7 +134,10 @@ class TestAutoOptimizer:
         )
         # With near-zero budget, should either reject or pick cheapest option
         assert decision.estimated_cost_usd <= 10.0 or decision.action in (
-            "use_rag", "use_skill", "use_working_memory", "reject"
+            "use_rag",
+            "use_skill",
+            "use_working_memory",
+            "reject",
         )
 
     def test_has_alternatives(self, optimizer_no_registry):
@@ -146,14 +161,15 @@ class TestAutoOptimizer:
 # AdaptiveSampleSelector Tests
 # ============================================================================
 
+
 class TestAdaptiveSampleSelector:
 
     @pytest.fixture
     def selector_random(self):
         from asft.selection.sample_selector import AdaptiveSampleSelector
+
         return AdaptiveSampleSelector(
-            model=None, tokenizer=None,
-            keep_fraction=0.5, method="random"
+            model=None, tokenizer=None, keep_fraction=0.5, method="random"
         )
 
     def test_random_selection_keeps_fraction(self, selector_random):
@@ -189,23 +205,27 @@ class TestAdaptiveSampleSelector:
 # ComputeBudgetRouter Tests
 # ============================================================================
 
+
 class TestComputeBudgetRouter:
 
     @pytest.fixture
     def router(self):
         from asft.compute.adaptive_compute import ComputeBudgetRouter
+
         return ComputeBudgetRouter()
 
     def test_simple_factual_gets_low_tier(self, router):
         from asft.compute.adaptive_compute import ComputeTier
+
         decision = router.route("What is the capital of France?")
         assert decision.tier in (ComputeTier.MINIMAL, ComputeTier.LOW, ComputeTier.MEDIUM)
 
     def test_complex_coding_gets_high_tier(self, router):
         from asft.compute.adaptive_compute import ComputeTier
+
         decision = router.route(
             "Design and implement a distributed caching system with consistent hashing",
-            domain="coding"
+            domain="coding",
         )
         assert decision.tier in (ComputeTier.HIGH, ComputeTier.MAXIMUM)
 
@@ -225,6 +245,7 @@ class TestComputeBudgetRouter:
 
     def test_batch_route_sorted_easy_first(self, router):
         from asft.compute.adaptive_compute import ComputeTier
+
         tasks = [
             "Design a distributed ML training system",
             "What is 1+1?",
@@ -239,29 +260,41 @@ class TestComputeBudgetRouter:
 # EWCRegularizer Tests
 # ============================================================================
 
+
 class TestEWCRegularizer:
 
     def _make_tiny_model(self):
         """Create a tiny 2-layer linear model for testing."""
         import torch.nn as nn
+
         model = nn.Sequential(nn.Linear(10, 5), nn.ReLU(), nn.Linear(5, 3))
         return model
 
     def _make_dataloader(self, model):
         """Create a minimal dataloader."""
         import torch
+
         x = torch.randn(20, 10)
         labels = torch.zeros(20, dtype=torch.long)
+
         # Wrap as HF-style dict batches
         class DictDataset:
             def __init__(self):
-                self.data = [({"input_ids": x[i:i+1], "labels": labels[i:i+1]}) for i in range(20)]
-            def __len__(self): return len(self.data)
-            def __getitem__(self, i): return self.data[i]
+                self.data = [
+                    ({"input_ids": x[i : i + 1], "labels": labels[i : i + 1]}) for i in range(20)
+                ]
+
+            def __len__(self):
+                return len(self.data)
+
+            def __getitem__(self, i):
+                return self.data[i]
+
         return DictDataset()
 
     def test_ewc_loss_zero_before_compute(self):
         from asft.continual.ewc_trainer import EWCConfig, EWCRegularizer
+
         model = self._make_tiny_model()
         ewc = EWCRegularizer(model, EWCConfig(ewc_lambda=1000.0))
         assert not ewc.has_fisher()
@@ -308,8 +341,12 @@ class TestEWCRegularizer:
         def make_ewc(lam):
             model = self._make_tiny_model()
             ewc = EWCRegularizer(model, EWCConfig(ewc_lambda=lam))
-            ewc._fisher = {n: torch.ones_like(p) for n, p in model.named_parameters() if p.requires_grad}
-            ewc._anchors = {n: torch.zeros_like(p) for n, p in model.named_parameters() if p.requires_grad}
+            ewc._fisher = {
+                n: torch.ones_like(p) for n, p in model.named_parameters() if p.requires_grad
+            }
+            ewc._anchors = {
+                n: torch.zeros_like(p) for n, p in model.named_parameters() if p.requires_grad
+            }
             return ewc, model
 
         ewc_low, _ = make_ewc(100.0)

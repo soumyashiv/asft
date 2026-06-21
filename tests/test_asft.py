@@ -3,6 +3,7 @@ ASFT — Pytest Test Suite
 Tests all core components without requiring a GPU or LLM.
 Run with: pytest tests/ -v
 """
+
 import time
 from pathlib import Path
 
@@ -12,9 +13,11 @@ import pytest
 # Core tests
 # ===========================================================================
 
+
 class TestHardwareProfiler:
     def test_detect_hardware_returns_profile(self):
         from asft.core.hardware_profiler import detect_hardware
+
         hw = detect_hardware()
         assert hw is not None
         assert hw.ram_total_gb > 0
@@ -23,12 +26,14 @@ class TestHardwareProfiler:
 
     def test_hardware_summary(self):
         from asft.core.hardware_profiler import detect_hardware
+
         hw = detect_hardware()
         summary = hw.summary()
         assert isinstance(summary, str) and len(summary) > 10
 
     def test_recommendations_not_empty(self):
         from asft.core.hardware_profiler import detect_hardware
+
         hw = detect_hardware()
         # Method can return any valid option (CPU-only may return int4)
         assert hw.recommended_training_method in ("full", "lora", "qlora", "sparse", "asft")
@@ -39,18 +44,21 @@ class TestHardwareProfiler:
 class TestConfig:
     def test_default_config_creates(self):
         from asft.core.config import ASFTConfig
+
         cfg = ASFTConfig()
         assert cfg is not None
         assert cfg.data_dir is not None
 
     def test_config_ensure_dirs(self, tmp_path):
         from asft.core.config import ASFTConfig
+
         cfg = ASFTConfig(data_dir=str(tmp_path / "asft_test_data"))
         cfg.ensure_dirs()
         assert Path(cfg.data_dir).exists()
 
     def test_config_yaml_roundtrip(self, tmp_path):
         from asft.core.config import ASFTConfig
+
         cfg = ASFTConfig(data_dir=str(tmp_path))
         yaml_path = str(tmp_path / "test_config.yaml")
         cfg.to_yaml(yaml_path)
@@ -60,6 +68,7 @@ class TestConfig:
     def test_config_apply_hardware(self):
         from asft.core.config import ASFTConfig
         from asft.core.hardware_profiler import detect_hardware
+
         cfg = ASFTConfig()
         hw = detect_hardware()
         cfg.apply_hardware_profile(hw)
@@ -71,12 +80,14 @@ class TestRegistry:
 
     def test_register_and_get(self):
         from asft.core.registry import Registry
+
         reg = Registry()
         reg.register("test", "item", "value_1")
         assert reg.get("test", "item") == "value_1"
 
     def test_list_namespace(self):
         from asft.core.registry import Registry
+
         reg = Registry()
         reg.register("ns", "a", 1)
         reg.register("ns", "b", 2)
@@ -85,6 +96,7 @@ class TestRegistry:
 
     def test_unregister(self):
         from asft.core.registry import Registry
+
         reg = Registry()
         reg.register("ns", "key", "val")
         reg.unregister("ns", "key")
@@ -93,11 +105,13 @@ class TestRegistry:
 
     def test_get_or_none(self):
         from asft.core.registry import Registry
+
         reg = Registry()
         assert reg.get_or_none("nonexistent", "key") is None
 
     def test_exists(self):
         from asft.core.registry import Registry
+
         reg = Registry()
         reg.register("ns", "x", 42)
         assert reg.exists("ns", "x")
@@ -108,15 +122,18 @@ class TestRegistry:
 # Memory tests
 # ===========================================================================
 
+
 class TestWorkingMemory:
     def test_set_and_get(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory()
         wm.set("x", 42)
         assert wm.get("x") == 42
 
     def test_ttl_expiry(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory()
         wm.set("temp", "data", ttl=0.001)
         time.sleep(0.02)
@@ -125,6 +142,7 @@ class TestWorkingMemory:
 
     def test_tags(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory()
         wm.set("a", 1, tags=["t1"])
         wm.set("b", 2, tags=["t1", "t2"])
@@ -133,6 +151,7 @@ class TestWorkingMemory:
 
     def test_all_keys(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory(max_items=50)
         for i in range(3):
             wm.set(f"k{i}", i)
@@ -141,6 +160,7 @@ class TestWorkingMemory:
 
     def test_clear(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory()
         wm.set("x", 1)
         wm.clear()
@@ -148,6 +168,7 @@ class TestWorkingMemory:
 
     def test_delete(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory()
         wm.set("y", 99)
         wm.delete("y")
@@ -155,6 +176,7 @@ class TestWorkingMemory:
 
     def test_snapshot(self):
         from asft.memory.working_memory import WorkingMemory
+
         wm = WorkingMemory()
         wm.set("a", 1)
         wm.set("b", 2)
@@ -168,13 +190,15 @@ class TestEpisodicMemory:
 
     def setup_method(self):
         import tempfile
-        import os
+
         from asft.memory.episodic_memory import EpisodicMemory
+
         self.db_fd, self.db_path = tempfile.mkstemp(suffix=".db")
         self.em = EpisodicMemory(db_path=self.db_path)
 
     def teardown_method(self):
         import os
+
         os.close(self.db_fd)
         try:
             os.remove(self.db_path)
@@ -183,6 +207,7 @@ class TestEpisodicMemory:
 
     def _make_record(self, task, content="test"):
         from asft.memory.episodic_memory import Episode
+
         return Episode(id="", content=content, task=task)
 
     def test_record_and_count(self):
@@ -207,12 +232,13 @@ class TestSemanticMemory:
 
     def setup_method(self):
         from asft.memory.semantic_memory import SemanticMemory
+
         self.sm = SemanticMemory(db_path=":memory:")
 
     def _fact(self, subject, predicate, obj, source="test"):
         from asft.memory.semantic_memory import FactRecord
-        return FactRecord(subject=subject, predicate=predicate,
-                          object=obj, source=source)
+
+        return FactRecord(subject=subject, predicate=predicate, object=obj, source=source)
 
     def test_store_and_retrieve_fact(self):
         self.sm.add_fact(self._fact("Python", "is_a", "language"))
@@ -239,9 +265,11 @@ class TestSemanticMemory:
 # Skill tests
 # ===========================================================================
 
+
 class TestSkillPacks:
-    @pytest.fixture(params=["coding", "research", "planning",
-                            "mathematics", "trading", "automation"])
+    @pytest.fixture(
+        params=["coding", "research", "planning", "mathematics", "trading", "automation"]
+    )
     def pack(self, request):
         from asft.skills.packs.automation import AutomationSkillPack
         from asft.skills.packs.coding import CodingSkillPack
@@ -249,6 +277,7 @@ class TestSkillPacks:
         from asft.skills.packs.planning import PlanningSkillPack
         from asft.skills.packs.research import ResearchSkillPack
         from asft.skills.packs.trading import TradingSkillPack
+
         packs = {
             "coding": CodingSkillPack,
             "research": ResearchSkillPack,
@@ -282,6 +311,7 @@ class TestSkillPacks:
 class TestMathDirectCompute:
     def test_simple_arithmetic(self):
         from asft.skills.packs.mathematics import MathematicsSkillPack
+
         mp = MathematicsSkillPack()
         result = mp.process("2 + 2 * 5")
         assert "12" in str(result.output)
@@ -289,12 +319,14 @@ class TestMathDirectCompute:
 
     def test_complex_expression(self):
         from asft.skills.packs.mathematics import MathematicsSkillPack
+
         mp = MathematicsSkillPack()
         result = mp.process("100 / 4 + 3")
         assert "28" in str(result.output)
 
     def test_no_model_fallback(self):
         from asft.skills.packs.mathematics import MathematicsSkillPack
+
         mp = MathematicsSkillPack()
         # Non-arithmetic text → model fallback (returns placeholder without model)
         result = mp.process("Prove the Pythagorean theorem")
@@ -307,6 +339,7 @@ class TestSkillRouter:
         from asft.skills.packs.coding import CodingSkillPack
         from asft.skills.packs.mathematics import MathematicsSkillPack
         from asft.skills.skill_router import SkillRouter
+
         self.reg = Registry()
         self.reg.register_skill("coding", CodingSkillPack())
         self.reg.register_skill("mathematics", MathematicsSkillPack())
@@ -340,9 +373,11 @@ class TestSkillRouter:
 # Accuracy tests
 # ===========================================================================
 
+
 class TestConfidenceScorer:
     def setup_method(self):
         from asft.accuracy.confidence_scorer import ConfidenceScorer
+
         self.scorer = ConfidenceScorer()
 
     def test_empty_output_low_score(self):
@@ -380,13 +415,16 @@ class TestConfidenceScorer:
     def test_high_medium_low_labels(self):
         low = self.scorer.score("")
         assert low.label == "LOW"
-        high = self.scorer.score("```python\ndef verified_function():\n    return 42\n```\nThe result is 42.")
+        high = self.scorer.score(
+            "```python\ndef verified_function():\n    return 42\n```\nThe result is 42."
+        )
         assert high.label in ("HIGH", "MEDIUM")
 
 
 class TestSelfCritique:
     def test_no_generate_fn_marks_issues_only(self):
         from asft.accuracy.self_critique import SelfCritiqueEngine
+
         critic = SelfCritiqueEngine()
         # Without generate_fn, issues are found but no revision attempted
         result = critic.critique("The answer is 42.", "What is the answer?")
@@ -395,6 +433,7 @@ class TestSelfCritique:
 
     def test_hallucination_detected(self):
         from asft.accuracy.self_critique import SelfCritiqueEngine
+
         critic = SelfCritiqueEngine()
         output = "According to a recent study, experts agree this is widely known."
         result = critic.critique(output, "Explain X")
@@ -402,12 +441,14 @@ class TestSelfCritique:
 
     def test_short_output_flagged(self):
         from asft.accuracy.self_critique import SelfCritiqueEngine
+
         critic = SelfCritiqueEngine()
         result = critic.critique("ok", "Question requiring a detailed answer")
         assert "response_too_short" in result.issues_found
 
     def test_clean_output_no_issues(self):
         from asft.accuracy.self_critique import SelfCritiqueEngine
+
         critic = SelfCritiqueEngine()
         clean = (
             "The Pythagorean theorem states that in a right triangle, "
@@ -418,12 +459,10 @@ class TestSelfCritique:
         assert result.is_clean or len(result.issues_found) <= 1
 
 
-
-
-
 class TestVerificationLayer:
     def test_math_correct_answer(self):
         from asft.accuracy.verification_layer import VerificationLayer
+
         vl = VerificationLayer()
         result = vl.verify("The result is 12.", "2 + 2 * 5", task_type="mathematics")
         assert result.verified is True
@@ -431,12 +470,14 @@ class TestVerificationLayer:
 
     def test_math_wrong_answer(self):
         from asft.accuracy.verification_layer import VerificationLayer
+
         vl = VerificationLayer()
         result = vl.verify("The result is 999.", "2 + 2 * 5", task_type="mathematics")
         assert result.method == "math_cas"
 
     def test_no_verifier_returns_none_result(self):
         from asft.accuracy.verification_layer import VerificationLayer
+
         vl = VerificationLayer()
         result = vl.verify("Some general output.", "General question.", task_type="general")
         assert result is not None
@@ -445,6 +486,7 @@ class TestVerificationLayer:
 class TestMultiPassReasoner:
     def test_best_of_k(self):
         from asft.accuracy.multi_pass_reasoner import MultiPassReasoner
+
         reasoner = MultiPassReasoner(k=3, strategy="best_of_k")
 
         def mock_gen(n):
@@ -456,9 +498,11 @@ class TestMultiPassReasoner:
 
     def test_escalating_stops_early_if_confident(self):
         from asft.accuracy.multi_pass_reasoner import MultiPassReasoner
+
         reasoner = MultiPassReasoner(k=3, min_confidence=0.3, strategy="escalating")
 
         call_count = [0]
+
         def mock_gen(n):
             call_count[0] += n
             return ["The answer is definitively 42. Steps: 1, 2, 3."] * n
@@ -470,6 +514,7 @@ class TestMultiPassReasoner:
 
     def test_self_consistency(self):
         from asft.accuracy.multi_pass_reasoner import MultiPassReasoner
+
         reasoner = MultiPassReasoner(k=3, strategy="self_consistency")
 
         def mock_gen(n):
@@ -483,10 +528,12 @@ class TestMultiPassReasoner:
 # Dataset tests
 # ===========================================================================
 
+
 class TestDeduplicator:
     def test_exact_duplicates_removed(self):
         try:
             from asft.dataset.deduplicator import DatasetDeduplicator
+
             dedup = DatasetDeduplicator(threshold=0.9, num_perm=128)
             texts = ["Hello world this is a test sentence"] * 5 + [
                 "Completely different text about machine learning and AI systems"
@@ -499,6 +546,7 @@ class TestDeduplicator:
     def test_unique_texts_mostly_kept(self):
         try:
             from asft.dataset.deduplicator import DatasetDeduplicator
+
             # Use num_perm=128 (default) and reasonable threshold
             dedup = DatasetDeduplicator(threshold=0.95, num_perm=128)
             texts = [
@@ -520,6 +568,7 @@ class TestRepresentativeSelector:
         import numpy as np
 
         from asft.dataset.representative_selector import RepresentativeSelector
+
         embeddings = np.random.randn(10, 16)
         labels = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2, 2])
         selector = RepresentativeSelector(strategy="centroid", samples_per_cluster=1)
@@ -531,8 +580,9 @@ class TestRepresentativeSelector:
         import numpy as np
 
         from asft.dataset.representative_selector import RepresentativeSelector
+
         embeddings = np.random.randn(9, 8)
-        labels = np.array([0]*3 + [1]*3 + [2]*3)
+        labels = np.array([0] * 3 + [1] * 3 + [2] * 3)
         selector = RepresentativeSelector(strategy="diversity", samples_per_cluster=2)
         indices, stats = selector.select(embeddings, labels)
         assert len(indices) == 6
@@ -541,8 +591,9 @@ class TestRepresentativeSelector:
         import numpy as np
 
         from asft.dataset.representative_selector import RepresentativeSelector
+
         embeddings = np.random.randn(8, 8)
-        labels = np.array([0]*4 + [1]*4)
+        labels = np.array([0] * 4 + [1] * 4)
         selector = RepresentativeSelector(strategy="hybrid", samples_per_cluster=2)
         indices, stats = selector.select(embeddings, labels)
         assert len(indices) > 0
@@ -551,6 +602,7 @@ class TestRepresentativeSelector:
         import numpy as np
 
         from asft.dataset.representative_selector import RepresentativeSelector
+
         embeddings = np.random.randn(20, 8)
         labels = np.array([i // 4 for i in range(20)])  # 5 clusters of 4
         selector = RepresentativeSelector(strategy="centroid", samples_per_cluster=1)
@@ -561,5 +613,3 @@ class TestRepresentativeSelector:
 # ===========================================================================
 # Evolutionary tests
 # ===========================================================================
-
-

@@ -3,6 +3,7 @@ ASFT Example 3 — Dataset Compression (no GPU required)
 =======================================================
 Demonstrates the full dedup → cluster → select pipeline on a synthetic dataset.
 """
+
 import json
 import os
 import tempfile
@@ -56,7 +57,9 @@ try:
     kept_texts, kept_ids, dedup_stats = deduper.deduplicate(texts, ids)
     print(f"  Original: {dedup_stats['original_count']}")
     print(f"  After dedup: {dedup_stats['kept_count']}")
-    print(f"  Removed: {dedup_stats['removed_count']} ({dedup_stats['reduction_ratio']:.1%} reduction)")
+    print(
+        f"  Removed: {dedup_stats['removed_count']} ({dedup_stats['reduction_ratio']:.1%} reduction)"
+    )
 except ImportError:
     print("  datasketch not installed — skipping dedup (pip install datasketch)")
     kept_texts = SAMPLES
@@ -88,6 +91,7 @@ def mock_generate(n: int):
         "Using the power rule: f'(x) = 9x^2 + 4x - 5.",
     ]
     return random.choices(templates, k=n)
+
 
 reasoner = MultiPassReasoner(k=3, strategy="best_of_k")
 result = reasoner.reason(mock_generate, task_type="mathematics")

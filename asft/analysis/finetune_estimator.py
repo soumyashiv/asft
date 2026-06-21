@@ -1,8 +1,9 @@
 """Fine-tuning cost and accuracy estimation."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from asft.analysis.rag_analyzer import RAGEvaluationResult
 
@@ -12,11 +13,11 @@ class FinetuneEstimateResult:
     """Typed result from the fine-tuning estimation stage."""
 
     method: str = "fine_tuning"
-    expected_score: float = 0.0     # normalised 0-100
-    estimated_cost: float = 0.0     # USD
-    estimated_hours: float = 0.0    # GPU hours
+    expected_score: float = 0.0  # normalised 0-100
+    estimated_cost: float = 0.0  # USD
+    estimated_hours: float = 0.0  # GPU hours
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "method": self.method,
             "expected_score": round(self.expected_score / 100, 2),
@@ -55,7 +56,7 @@ class FinetuneEstimator:
 
     def estimate(
         self,
-        task_config: Dict[str, Any],
+        task_config: dict[str, Any],
         rag_result: RAGEvaluationResult,
     ) -> FinetuneEstimateResult:
         """Return a :class:`FinetuneEstimateResult` for the given task and RAG baseline."""
