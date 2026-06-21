@@ -267,5 +267,5 @@ ASFT is designed for robust enterprise deployment:
 
 ## Status
 
-**Current Version:** `0.1.0` (Production Ready)  
+**Current Version:** `0.1.0`
 **Security Posture:** Hardened
