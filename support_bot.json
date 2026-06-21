@@ -1,0 +1,7 @@
+{
+  "task_name": "customer support chatbot",
+  "model": "meta-llama/Llama-3",
+  "dataset": "./data.json",
+  "documents": "./docs/",
+  "metric": "accuracy"
+}

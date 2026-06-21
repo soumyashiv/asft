@@ -17,12 +17,14 @@ __version__ = "0.1.0"
 __author__ = "ASFT Contributors"
 __license__ = "MIT"
 
+from asft.analysis.analyzer import Analyzer
 from asft.core.config import ASFTConfig
 from asft.core.hardware_profiler import HardwareProfile, detect_hardware
 from asft.core.registry import Registry
 
 __all__ = [
     "__version__",
+    "Analyzer",
     "ASFTConfig",
     "detect_hardware",
     "HardwareProfile",

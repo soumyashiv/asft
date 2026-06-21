@@ -63,6 +63,101 @@ pip install -e ".[qdrant]"    # For persistent vector memory
 pip install -e ".[dev]"       # For testing and development
 ```
 
+## 🔍 Analyze before you fine-tune
+
+ASFT is an **LLM optimization decision assistant** — it runs a 4-stage analysis pipeline and tells you exactly which approach to use before you spend money on fine-tuning.
+
+```bash
+asft analyze task_config.json
+```
+
+**task_config.json** — supported fields:
+```json
+{
+  "task_name": "customer support chatbot",
+  "model": "meta-llama/Llama-3",
+  "dataset": "./dataset.json",
+  "documents": "./knowledge_base/",
+  "evaluation_metric": "accuracy"
+}
+```
+
+**Example output:**
+```
+================================
+ASFT Decision Report
+================================
+
+Task:  Customer Support Chatbot
+
+Prompt:  72%
+RAG:     89%
+Fine-tuning:  90% estimated
+
+Recommendation:  RAG
+Confidence:      97%
+
+Reason:
+  RAG improves accuracy by 17.0 pp over prompting (72% -> 89%).
+  Fine-tuning adds only 1.0 pp more while costing $500 and 9 GPU hours.
+  Avoid unnecessary fine-tuning.
+
+Estimated savings:
+  $500 GPU cost avoided
+  9 GPU hours avoided
+================================
+```
+
+### Python API
+
+```python
+from asft import Analyzer
+
+# From a task config dict
+report = Analyzer.from_config({
+    "task_name": "customer support chatbot",
+    "model": "meta-llama/Llama-3",
+    "documents": "./knowledge_base/",
+}).recommend()
+
+print(report.recommendation.method)     # "RAG"
+print(report.recommendation.savings_usd)  # 500.0
+```
+
+### Framework integrations
+
+#### HuggingFace
+
+```python
+from asft import Analyzer
+
+result = Analyzer.from_huggingface(
+    model="meta-llama/Llama-3",
+    dataset="my_dataset",
+)
+result.recommend()
+```
+
+#### Plug in a real evaluator
+
+Subclass `PromptEvaluator` or `RAGAnalyzer` to connect your own benchmark runner:
+
+```python
+from asft.analysis import Analyzer, PromptEvaluator, PromptEvaluationResult
+
+class MyEvalHarnessEvaluator(PromptEvaluator):
+    def evaluate_baseline(self, task_config) -> PromptEvaluationResult:
+        # call lm-eval-harness, OpenAI Evals, or your own test suite here
+        score = run_my_benchmark(task_config["model"], task_config["dataset"])
+        return PromptEvaluationResult(score=score * 100)
+
+report = Analyzer.from_config(task_config, prompt_evaluator=MyEvalHarnessEvaluator()).recommend()
+```
+
+The goal is to **prevent unnecessary fine-tuning** and reduce LLM development cost.
+
+---
+
 ## 🛠️ Quickstart
 
 Before you spend hours fine-tuning, ask ASFT's Decision Engine if it is actually required and what the optimal path is:
