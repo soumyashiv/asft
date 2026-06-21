@@ -1,6 +1,0 @@
-{
-  "task_name": "support chatbot",
-  "dataset": "path/to/data.json",
-  "model": "meta-llama/Llama-3",
-  "evaluation_metric": "accuracy"
-}
